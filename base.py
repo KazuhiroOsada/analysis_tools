@@ -1,10 +1,10 @@
 import os
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from coordinate import VectorTransformer
 from reader import DataReader
+from equatorial_reader import EquatorialDataReader
 
 
 class Run:
@@ -34,16 +34,11 @@ class Run:
         # when name is refered first, read files and store them
         self.name_list = ['coord', 'bg', 'field', 'current', 'moment', 'dist']
         self.is_read = {name: False for name in self.name_list}
-
-    def __getattribute__(self, name):
-        if name in self.name_list:
-            if not self.is_read[name]:
-                print(f"Reading {name} data...")
-                DataReader(self, name)
-                self.is_read[name] = True
-            return self.__dict__[name]
-        else:
-            raise AttributeError(f"'Run' object has no attribute '{name}'")
+        # coordinate system
+        self.is_cartesian = {'field': False, 'current': False}
+        # call DataReader object
+        self.reader = DataReader(self)
+        self.eqreader = EquatorialDataReader(self)
 
     def read_parameters(self, filename='parameter.dat'):
         path_of_file = os.path.join(self.prefix, 'parameter.dat')
@@ -63,21 +58,99 @@ class Run:
             # simulation domain
             self.Rmin, self.Rmax, self.Lmin, self.Lmax, self.Pmin, self.Pmax = np.fromfile(f, np.float64, 6)
             # number of species
-            self.Ns = np.fromfile(f, np.int32, 1)
+            self.Ns = np.fromfile(f, np.int32, 1)[0]
             # for each species
-            self.Qm, self.Mmin, self.Mmax, self.Vmin, self.Vmax, self.mu, self.vp = np.zeros((7, self.Ns))
+            self.Qm, self.Mmin, self.Mmax, self.Vmin, self.Vmax = np.zeros((5, self.Ns))
+            self.mu, self.vp = np.zeros((self.Ns, self.Nm)), np.zeros((self.Ns, self.Nv))
             for s in range(self.Ns):
                 self.Qm[s], self.Mmin[s], self.Mmax[s], self.Vmin[s], self.Vmax[s] = np.fromfile(f, np.float64, 5)
                 self.mu[s] = np.fromfile(f, np.float64, self.Nm)
                 self.vp[s] = np.fromfile(f, np.float64, self.Nv)
-        # array dimension
-        self.dims3d = self.N3, self.N2, self.N1
-        self.dims5d = self.N3, self.N2, self.N1, self.Nm, self.Nv
-        
-        
 
-def main():
-    pass
+    def set_trange(self, trange, target='f'):
+        """
+        set time range for data extraction
+        trange = (begin, end, interval)
+        if target is 'f', set trange for field, current and moment
+        if target is 'v', set trange for dist
+        """
+        if target == 'f':
+            self.trange = trange
+            self.time = np.arange(*trange) * self.delt * self.ifdiag
+            self.Nt = len(self.time)
+            for name in self.is_read:
+                self.is_read[name] = False
+        elif target == 'v':
+            # for dist data
+            self.trange_v = trange
+            self.time_v = np.arange(*trange) * self.delt * self.ivdiag
+            self.Nt_v = len(self.time_v)
+            # for other data
+            v2f = self.ivdiag//self.ifdiag
+            self.trange = (trange[0]*v2f, (trange[1]-1)*v2f + 1, trange[2]*v2f)
+            for name in self.is_read:
+                self.is_read[name] = False
+        else:
+            print('argument target should be f or v')
 
-if __name__ == "__main__":
-    main()
+    def read(self, name):
+        if self.is_read[name]:
+            print(f'{name} is already read')
+        elif name == 'coord':
+            self.reader.read_coord()
+        elif name == 'bg':
+            self.reader.read_bg()
+        elif name == 'field':
+            self.reader.read_field(self.trange)
+        elif name == 'current':
+            self.reader.read_current(self.trange)
+        elif name == 'moment':
+            for s in range(self.Ns):
+                self.reader.read_moment(self.trange, s)
+        elif name == 'dist':
+            for s in range(self.Ns):
+                self.reader.read_dist(self.trange_v, s)
+        else:
+            print(f'No reader for {name}')
+        self.is_read[name] = True
+
+    def read_equatorial(self, name):
+        if self.is_read[name]:
+            print(f'{name} is already read')
+        elif name == 'coord':
+            self.eqreader.read_coord()
+        elif name == 'bg':
+            self.eqreader.read_bg()
+        elif name == 'field':
+            self.eqreader.read_field(self.trange)
+        elif name == 'current':
+            self.eqreader.read_current(self.trange)
+        elif name == 'moment':
+            for s in range(self.Ns):
+                self.eqreader.read_moment(self.trange, s)
+        elif name == 'dist':
+            for s in range(self.Ns):
+                self.eqreader.read_dist(self.trange_v, s)
+        else:
+            print(f'No reader for {name}')
+        self.is_read[name] = True
+
+    def transform(self, name):
+        transformer = VectorTransformer(self.Xi, self.Yi, self.Zi)
+        if name == 'field':
+            self.B0 = transformer(self.B0)
+            for it in range(self.Nt):
+                self.B[..., it] = transformer(self.B[..., it])
+                self.V[..., it] = transformer(self.V[..., it])
+            self.is_cartesian['field'] = True
+        elif name == 'current':
+            for it in range(self.Nt):
+                self.Jd[..., it] = transformer(self.Jd[..., it])
+                self.Jm[..., it] = transformer(self.Jm[..., it])
+                self.Je[..., it] = transformer(self.Je[..., it])
+                self.Jp[..., it] = transformer(self.Jp[..., it])
+                self.Jtot[..., it] = transformer(self.Jtot[..., it])
+            self.is_cartesian['current'] = True
+        else:
+            print(f'No transformation for {name}')
+        
