@@ -10,11 +10,16 @@ mu0 = 4.0 * np.pi * 1e-7
 Me = -8.043e15 # T m^3 
 Mp = 1.67e-27 # kg
 
-def get_Rho0_Sheely(L):
+def get_Rho0_Sheely(L, MLT=None, is_in_ps=True):
     """
     Sheely et al.(2001)
     """
-    return 1390.0 * (3.0/L)**4.83 # /cc
+    if is_in_ps: # in plasmasphere
+        return 1390.0 * (3.0/L)**4.83 # /cc
+    else: # in plasmatrough
+        if MLT is None:
+            raise ValueError("MLT must be provided for plasmatrough density calculation")
+        return 124.0 * (3.0/L)**4.0 + 36 * (3.0/L)**3.5 * np.cos((MLT - (7.7 * (3.0/L)**2.0 + 12.0)) *np.pi/12.0) # /cc
 
 def get_B0(r, theta, Me):
     return Me * r**(-3) * np.sqrt(4 - 3*np.sin(theta)**2)*1e9 # nT
@@ -97,7 +102,8 @@ if __name__ == "__main__":
 
     coord = ModifiedDipole(Lmin, Lmax, Rmin, theta_min, N1, N2, stretch)
     coord.L = coord.x2**(-2) / coord.Re
-    Rho0 = get_Rho0_Sheely(coord.L)
+    Rho0 = get_Rho0_Sheely(coord.L, MLT=6.0, is_in_ps=False)
+    print(Rho0)
     B0 = get_B0(coord.r*coord.Re, coord.theta, Me)
     Va0 = get_Va0(B0, Rho0)
     Va0_max = np.max(Va0)
