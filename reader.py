@@ -3,6 +3,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
+from chunk_reader import coord_reader, bg_reader, field_reader, current_reader, moment_reader, dist_reader
+
 
 # number of threads for parallel processing if max_workers is None, it will be set automatically
 max_workers = None
@@ -55,26 +57,19 @@ class DataReader:
 
         def process_chunk(d1, d2, d3):
             file_path = self.get_file_path('coord', d1, d2, d3)
-            with open(file_path, 'rb') as f:
-                # read scalar
-                scalar[:] = np.fromfile(f, np.float64, 4)
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # read logical grid points
-                x1[i1_local] = np.fromfile(f, np.float64, self.N1_local)
-                x2[i2_local] = np.fromfile(f, np.float64, self.N2_local)
-                x3[i3_local] = np.fromfile(f, np.float64, self.N3_local)
-                # read metric and cartesian coordinate at cell center
-                idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))                
-                metric[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                xyzi[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                # read cartesian coordinate at cell boundary
-                i1_local = np.arange(self.N1_local+1) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local+1) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local+1) + self.N3_local*d3
-                idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))
-                xyzh[idx] = np.fromfile(f, np.float64, (self.N3_local+1)*(self.N2_local+1)*(self.N1_local+1)*3).reshape((self.N3_local+1, self.N2_local+1, self.N1_local+1, 3))
+            # local indices for the current domain on the integer grid
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))
+            # on the half integer grid
+            h1_local = np.arange(self.N1_local+1) + self.N1_local*d1
+            h2_local = np.arange(self.N2_local+1) + self.N2_local*d2
+            h3_local = np.arange(self.N3_local+1) + self.N3_local*d3
+            hidx = (h3_local[:, None, None], h2_local[None, :, None], h1_local[None, None, :], slice(None))
+            # read data from file
+            scalar[:], x1[i1_local], x2[i2_local], x3[i3_local], \
+            metric[idx], xyzi[idx], xyzh[hidx] = coord_reader(file_path, self.N1_local, self.N2_local, self.N3_local)
         
         self.thread_parallel_processing(process_chunk)
 
@@ -106,16 +101,12 @@ class DataReader:
         Rho0 = np.zeros(shape_global_Rho0)
 
         def process_chunk(d1, d2, d3):
-            file_path = self.get_file_path('bg', d1, d2, d3)
-            with open(file_path, 'rb') as f:
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # read background magnetic field
-                idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))                
-                B0[idx] = np.fromfile(f, np.float64, elements_local_B0).reshape(shape_local_B0)
-                # read background density
-                Rho0[idx[:-1]] = np.fromfile(f, np.float64, elements_local_Rho0).reshape(shape_local_Rho0)
+            file_path = self.get_file_path('bg', d1, d2, d3)    
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))
+            B0[idx], Rho0[idx[:-1]] = bg_reader(file_path, self.N1_local, self.N2_local, self.N3_local)
 
         self.thread_parallel_processing(process_chunk)
 
@@ -138,20 +129,11 @@ class DataReader:
         
         def process_chunk(d1, d2, d3):
             file_path = self.get_file_path('field', d1, d2, d3)
-            with open(file_path, 'rb') as f:
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # seek to the position of the first time step
-                f.seek(elements_local*np.dtype(np.float64).itemsize*trange[0])
-                for it in range(Nt):
-                    # read electric drift
-                    idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), it)
-                    V[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    # read magnetic field
-                    B[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    # seek to the position of the next time step
-                    f.seek(2*elements_local*np.dtype(np.float64).itemsize*(trange[2]-1), 1)
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), slice(None))
+            V[idx], B[idx] = field_reader(file_path, self.N1_local, self.N2_local, self.N3_local, trange)
 
         self.thread_parallel_processing(process_chunk)
 
@@ -177,21 +159,11 @@ class DataReader:
 
         def process_chunk(d1, d2, d3):
             file_path = self.get_file_path('current', d1, d2, d3)
-            with open(file_path, 'rb') as f:
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # seek to the position of the first time step
-                f.seek(elements_local*jtypes*np.dtype(np.float64).itemsize*trange[0])
-                for it in range(Nt):
-                    # read current density
-                    idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), it)
-                    Jd[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    Jm[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    Je[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    Jp[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    # seek to the position of the next time step
-                    f.seek(elements_local*jtypes*np.dtype(np.float64).itemsize*(trange[2]-1), 1)
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3  
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), slice(None))
+            Jd[idx], Jm[idx], Je[idx], Jp[idx] = current_reader(file_path, self.N1_local, self.N2_local, self.N3_local, trange)          
 
         self.thread_parallel_processing(process_chunk)
 
@@ -219,22 +191,11 @@ class DataReader:
 
         def process_chunk(d1, d2, d3):
             file_path = self.get_file_path('moment', d1, d2, d3, s)
-            with open(file_path, 'rb') as f:
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # seek to the position of the first time step
-                f.seek(elements_local*np.dtype(np.float64).itemsize*trange[0])
-                for it in range(Nt):
-                    # read moments
-                    moments = np.fromfile(f, np.float64, elements_local).reshape((shape_local))
-                    idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], it)
-                    Rho[idx] = moments[..., 0]
-                    Vpa[idx] = moments[..., 1]
-                    Ppa[idx] = moments[..., 2]
-                    Ppe[idx] = moments[..., 3]
-                    # seek to the position of the next time step
-                    f.seek(elements_local*np.dtype(np.float64).itemsize*(trange[2]-1), 1)
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None))
+            Rho[idx], Vpa[idx], Ppa[idx], Ppe[idx] = moment_reader(file_path, self.N1_local, self.N2_local, self.N3_local, trange)
 
         self.thread_parallel_processing(process_chunk)
 
@@ -269,18 +230,11 @@ class DataReader:
 
         def process_chunk(d1, d2, d3):
             file_path = self.get_file_path('dist', d1, d2, d3, s)
-            with open(file_path, 'rb') as f:
-                i1_local = np.arange(self.N1_local) + self.N1_local*d1
-                i2_local = np.arange(self.N2_local) + self.N2_local*d2
-                i3_local = np.arange(self.N3_local) + self.N3_local*d3
-                # seek to the position of the first time step
-                f.seek(elements_local*np.dtype(np.float64).itemsize*trange[0])
-                for it in range(Nt):
-                    # read phase space density
-                    idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), slice(None), it)
-                    dist[idx] = np.fromfile(f, np.float64, elements_local).reshape(shape_local)
-                    # seek to the position of the next time step
-                    f.seek(elements_local*np.dtype(np.float64).itemsize*(trange[2]-1), 1)
+            i1_local = np.arange(self.N1_local) + self.N1_local*d1
+            i2_local = np.arange(self.N2_local) + self.N2_local*d2
+            i3_local = np.arange(self.N3_local) + self.N3_local*d3
+            idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), slice(None), slice(None))
+            dist[idx] = np.zeros(shape_local + (Nt,))
 
         self.thread_parallel_processing(process_chunk)
 
