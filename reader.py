@@ -44,8 +44,6 @@ class DataReader:
         read 'coord-**-**-**.dat' files for coordinate data and parameters
         """
         shape_global = (self.N3, self.N2, self.N1, 3)
-        shape_local = (self.N3_local, self.N2_local, self.N1_local, 3)
-        elements_local = self.N3_local*self.N2_local*self.N1_local*3  
         # scalar and logical grid points
         scalar = np.zeros(4) # a, dx1, dx2, dx3
         x1, x2, x3 = np.zeros(self.N1), np.zeros(self.N2), np.zeros(self.N3)
@@ -91,11 +89,7 @@ class DataReader:
         read 'bg-**-**-**.dat' files for background magnetic field and density
         """
         shape_global_B0 = (self.N3, self.N2, self.N1, 3)
-        shape_local_B0 = (self.N3_local, self.N2_local, self.N1_local, 3)
-        elements_local_B0 = self.N3_local*self.N2_local*self.N1_local*3
         shape_global_Rho0 = (self.N3, self.N2, self.N1)
-        shape_local_Rho0 = (self.N3_local, self.N2_local, self.N1_local)
-        elements_local_Rho0 = self.N3_local*self.N2_local*self.N1_local
         # background magnetic field and density
         B0 = np.zeros(shape_global_B0)
         Rho0 = np.zeros(shape_global_Rho0)
@@ -121,8 +115,6 @@ class DataReader:
         tstep = range(*trange)
         Nt = len(tstep)
         shape_global = (self.N3, self.N2, self.N1, 3, Nt)
-        shape_local = (self.N3_local, self.N2_local, self.N1_local, 3)
-        elements_local = self.N3_local*self.N2_local*self.N1_local*3
         # magnetic field and electric drift
         V = np.zeros(shape_global)
         B = np.zeros(shape_global)
@@ -148,10 +140,7 @@ class DataReader:
         tstep = range(*trange)
         Nt = len(tstep)
         shape_global = (self.N3, self.N2, self.N1, 3, Nt)
-        shape_local = (self.N3_local, self.N2_local, self.N1_local, 3)
-        elements_local = self.N3_local*self.N2_local*self.N1_local*3
         # 4 types of current density
-        jtypes = 4 
         Jd = np.zeros(shape_global)
         Jm = np.zeros(shape_global)
         Je = np.zeros(shape_global)
@@ -181,8 +170,6 @@ class DataReader:
         tstep = range(*trange)
         Nt = len(tstep)
         shape_global = (self.N3, self.N2, self.N1, Nt) # for each moment values
-        shape_local = (self.N3_local, self.N2_local, self.N1_local, 4) # for moments
-        elements_local = self.N3_local*self.N2_local*self.N1_local*4 # for moments
         # moments
         Rho = np.zeros(shape_global)
         Vpa = np.zeros(shape_global)
@@ -234,7 +221,7 @@ class DataReader:
             i2_local = np.arange(self.N2_local) + self.N2_local*d2
             i3_local = np.arange(self.N3_local) + self.N3_local*d3
             idx = (i3_local[:, None, None], i2_local[None, :, None], i1_local[None, None, :], slice(None), slice(None), slice(None))
-            dist[idx] = np.zeros(shape_local + (Nt,))
+            dist[idx] = dist_reader(file_path, self.N1_local, self.N2_local, self.N3_local, self.Nm, self.Nv, trange)
 
         self.thread_parallel_processing(process_chunk)
 
