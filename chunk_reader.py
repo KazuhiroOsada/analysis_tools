@@ -106,15 +106,14 @@ def moment_reader(filename, N1, N2, N3, trange):
     Nt = len(tstep)
     shape = (N3, N2, N1, 4) # for array 'moments'
     number_of_elements = np.prod(shape)
-    mtypes = 4  # Rho, Vpa, Ppa, Ppe
-    Rho = np.zeros(shape + (Nt,))  # density [/m^3]
-    Vpa = np.zeros(shape + (Nt,))  # parallel velocity [m/s]
-    Ppa = np.zeros(shape + (Nt,))  # parallel pressure [Pa]
-    Ppe = np.zeros(shape + (Nt,))  # perpendicular pressure [Pa]
-    bytes_to_skip = mtypes*number_of_elements*np.dtype(np.float64).itemsize*(trange[2]-1)
+    Rho = np.zeros(shape[:-1] + (Nt,))  # density [/m^3]
+    Vpa = np.zeros(shape[:-1] + (Nt,))  # parallel velocity [m/s]
+    Ppa = np.zeros(shape[:-1] + (Nt,))  # parallel pressure [Pa]
+    Ppe = np.zeros(shape[:-1] + (Nt,))  # perpendicular pressure [Pa]
+    bytes_to_skip = number_of_elements*np.dtype(np.float64).itemsize*(trange[2]-1)
     with open(filename, 'rb') as f:
         # seek to the position of the first time step
-        f.seek(mtypes*number_of_elements*np.dtype(np.float64).itemsize*trange[0])
+        f.seek(number_of_elements*np.dtype(np.float64).itemsize*trange[0])
         for it in range(Nt):
             moments = np.fromfile(f, np.float64, number_of_elements).reshape(shape)
             Rho[..., it] = moments[..., 0]
