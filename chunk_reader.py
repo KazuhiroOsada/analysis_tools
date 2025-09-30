@@ -9,7 +9,7 @@ def coord_reader(filename, N1, N2, N3):
             x1(N1), x2(N2), x3(N3) : logical grid points    
             metric(N3, N2, N1, 3)  : h1, h2, h3
             xyzi(N3, N2, N1, 3)    : cartesian coordinate at cell center
-            xyzi(N3, N2, N1, 3)    : cartesian coordinate at cell boundary
+            xyzh(N3, N2, N1, 3)    : cartesian coordinate at cell boundary
     """
     shape = (N3, N2, N1, 3)
     number_of_elements = np.prod(shape)
@@ -42,8 +42,9 @@ def field_reader(filename, N1, N2, N3, trange):
     """
     filename = 'field-{d1}-{d2}-{d3}.dat'
     N1, N2, N3 : size of LOCAL gird
-    returns V(N3, N2, N1, 3, Nt) : magnetic field [T]
-            B(N3, N2, N1, 3, Nt) : velocity [m/s]
+    returns V(N3, N2, N1, 3, Nt) : velocity [m/s]
+            B(N3, N2, N1, 3, Nt) : magnetic field [T]
+            in dipole coordinate
     """
     tstep = range(*trange)
     Nt = len(tstep)

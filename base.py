@@ -22,7 +22,7 @@ class Run:
     """
     def __init__(self, prefix='.'):
         self.prefix = prefix
-        # coefficients to convert units of GEMSIS-RC's outputs (SI)
+        # coefficients to convert units of GEMSIS-RC's outputs (all in SI unit)
         self.unitB = 1.0/1.0e-9 # T to nT
         self.unitE = 1.0/1.0e-3 # V/m to mV/m
         self.unitJ = 1.0/1.0e-9 # A/m^2 to nA/m^2
@@ -136,6 +136,9 @@ class Run:
         self.is_read[name] = True
 
     def transform(self, name):
+        """
+        transform vector data from dipole to cartesian coordinate
+        """
         transformer = VectorTransformer(self.Xi, self.Yi, self.Zi)
         if name == 'field':
             self.B0 = transformer(self.B0)

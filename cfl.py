@@ -58,9 +58,9 @@ def get_allowed_minimum_density(Va0_max, B0):
 
 def extend_half_integer_grid(coord, axis=0):
     """
-    if axis=0, extend the grid in x2 direction
-    if axis=1, extend the grid in x1 direction
-    if axis=2, extend the grid in both directions
+    if axis=0, extend the grid in x2 direction -> (N1, N2+1)
+    if axis=1, extend the grid in x1 direction -> (N1+1, N2)
+    if axis=2, extend the grid in both directions -> (N1+1, N2+1)
     """
     N1, N2 = coord.N1, coord.N2
     new_grid = [None, None]

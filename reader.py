@@ -210,8 +210,6 @@ class DataReader:
         tstep = range(*trange)
         Nt = len(tstep)
         shape_global = (self.N3, self.N2, self.N1, self.Nm, self.Nv, Nt)
-        shape_local = (self.N3_local, self.N2_local, self.N1_local, self.Nm, self.Nv)
-        elements_local = self.N3_local*self.N2_local*self.N1_local*self.Nm*self.Nv
         # phase space density
         dist = np.zeros(shape_global)
 
