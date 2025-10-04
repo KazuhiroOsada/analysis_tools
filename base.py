@@ -59,13 +59,21 @@ class Run:
             self.Rmin, self.Rmax, self.Lmin, self.Lmax, self.Pmin, self.Pmax = np.fromfile(f, np.float64, 6)
             # number of species
             self.Ns = np.fromfile(f, np.int32, 1)[0]
-            # for each species
-            self.Qm, self.Mmin, self.Mmax, self.Vmin, self.Vmax = np.zeros((5, self.Ns))
-            self.mu, self.vp = np.zeros((self.Ns, self.Nm)), np.zeros((self.Ns, self.Nv))
-            for s in range(self.Ns):
-                self.Qm[s], self.Mmin[s], self.Mmax[s], self.Vmin[s], self.Vmax[s] = np.fromfile(f, np.float64, 5)
-                self.mu[s] = np.fromfile(f, np.float64, self.Nm)
-                self.vp[s] = np.fromfile(f, np.float64, self.Nv)
+            if self.Ns > 1: # multi species
+                self.Qm, self.Mmin, self.Mmax, self.Vmin, self.Vmax = np.zeros((5, self.Ns))
+                self.mu, self.vp = np.zeros((self.Ns, self.Nm)), np.zeros((self.Ns, self.Nv))
+                for s in range(self.Ns):
+                    self.Qm[s], self.Mmin[s], self.Mmax[s], self.Vmin[s], self.Vmax[s] = np.fromfile(f, np.float64, 5)
+                    self.mu[s] = np.fromfile(f, np.float64, self.Nm) # eV/T
+                    self.vp[s] = np.fromfile(f, np.float64, self.Nv) # m/s
+            else: # single species
+                self.Qm, self.Mmin, self.Mmax, self.Vmin, self.Vmax = np.fromfile(f, np.float64, 5)
+                self.mu = np.fromfile(f, np.float64, self.Nm) # eV/T
+                self.vp = np.fromfile(f, np.float64, self.Nv) # m/s
+        # domain decomposed array size
+        self.N1_local = self.N1 // self.domain[2]
+        self.N2_local = self.N2 // self.domain[1]
+        self.N3_local = self.N3 // self.domain[0]
 
     def set_trange(self, trange, target='f'):
         """

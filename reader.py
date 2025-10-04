@@ -19,7 +19,7 @@ class DataReader:
         self.domain = run.domain
         self.Nd3, self.Nd2, self.Nd1 = run.domain # number of domain decomposition
         self.N3, self.N2, self.N1, self.Nm, self.Nv = run.N3, run.N2, run.N1, run.Nm, run.Nv
-        self.N3_local, self.N2_local, self.N1_local = run.N3//self.domain[0], run.N2//self.domain[1], run.N1//self.domain[2]
+        self.N3_local, self.N2_local, self.N1_local = run.N3_local, run.N2_local, run.N1_local
         self.ext = '.dat'
         
     def get_file_path(self, name, d1, d2, d3, s=None):
