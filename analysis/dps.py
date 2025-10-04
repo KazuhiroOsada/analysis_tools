@@ -8,7 +8,7 @@ from base import Run
 
 def calc_total_energy(run):
     """
-    arguments: Run object
+    arguments: run -- Run object
     return   : time series of total energy in the simulation domain [J]
     
     (kinetic energy density [J/m^3]) = 3/2 (total pressure [Pa])
@@ -24,7 +24,7 @@ def calc_total_energy(run):
  
 def calc_SYM_H(run):
     """
-    arguments: Run object
+    arguments: run -- Run object
     return   : time series of SYM-H index [nT]
 
     (SYM-H [nT]) = 4/3 * -2 (total energy [J]) / Me (dipole moment [A m^2])
@@ -39,7 +39,7 @@ def calc_SYM_H(run):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    run = Run(f'../../run/case1b256')
+    run = Run('../../run/case1b256')
     run.set_trange((0, 2161, 20))
     run.read('coord')
     run.read('moment')
