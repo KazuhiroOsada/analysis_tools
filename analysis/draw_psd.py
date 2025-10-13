@@ -20,7 +20,9 @@ def convert_mu_to_vperp(mu, B):
     Mp = 1.673e-27 # proton mass [kg]
     return np.sqrt(2 * mu * (B*1e-9) * Qp / Mp)
 
-def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None, log=False, vmin=None, vmax=None, cmap='viridis', label='', title='', savefile=None):
+def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
+                           log=False, vmin=None, vmax=None, cmap='viridis',
+                           label='', title='', savefile=None):
     """
     arguments: run -- Run object
                Z   -- (Nm, Nv) array to be drawn

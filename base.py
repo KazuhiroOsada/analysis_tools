@@ -49,7 +49,7 @@ class Run:
             self.N1, self.N2, self.N3 = np.fromfile(f, np.int32, 3)
             self.Nm, self.Nv = np.fromfile(f, np.int32, 2)
             # time step
-            self.delt = np.fromfile(f, np.float64, 1)
+            self.delt = np.fromfile(f, np.float64, 1)[0]
             self.ifdiag, self.ivdiag = np.fromfile(f, np.int32, 2)
             # physical constants
             self.Me, self.Re, self.Qp, self.Mp, self.mu0 = np.fromfile(f, np.float64, 5)
