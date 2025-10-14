@@ -1,6 +1,5 @@
 import sys
 sys.path.append('..')
-import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -59,4 +58,3 @@ if __name__ == "__main__":
     frequencies = calc_eigenfreq(run, i2, i3)
     plt.plot(run.time, frequencies)
     plt.show()
-    
