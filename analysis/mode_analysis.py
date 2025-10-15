@@ -20,22 +20,16 @@ def calc_field_aligned_axis(run, i2, i3):
     s[run.N1//2+1:] = -s[run.N1//2-1::-1]
     return s
 
-def draw_x1_time(run, z, s=None, fig=None, ax=None, vmax=None, cmap='coolwarm', label=''):
+def draw_x1_time(run, z, i2, i3, fig=None, ax=None, vmax=None, cmap='coolwarm', label=''):
     """
     arguments: run -- Run object
                z   -- (N1, Nt) array
-               s   -- (N1+1,) field aligned coordinate for pcolormesh [Re] if None, use i1
     """
     was_fig_none = fig is None or ax is None
     if was_fig_none:
         fig, ax = plt.subplots()
 
-    if s is None:
-        s = np.arange(run.N1+1)
-        ax.set_ylabel('i1')
-    else:
-        ax.set_ylabel('s [Re]')
-    
+    s = calc_field_aligned_axis(run, i2, i3)
     dt = run.time[1] - run.time[0]
     t = np.linspace(run.time[0]-dt/2, run.time[-1]+dt/2, run.Nt+1)
     T, S = np.meshgrid(t, s)
@@ -47,6 +41,15 @@ def draw_x1_time(run, z, s=None, fig=None, ax=None, vmax=None, cmap='coolwarm', 
     pcm = ax.pcolormesh(T, S, z, vmin=vmin, vmax=vmax, cmap=cmap)
     cbar = fig.colorbar(pcm, ax=ax)
     cbar.set_label(label)
+    s_ticks = np.linspace(np.ceil(s.min()), np.floor(s.max()), 5)
+    ax.set_yticks(s_ticks)
+    Rh = np.sqrt(run.Xh[i3,i2,:]**2 + run.Yh[i3,i2,:]**2)
+    mlat = np.degrees(np.arctan2(run.Zh[i3,i2,:], Rh))
+    mlat_ticks = np.interp(s_ticks[::-1], s[::-1], mlat[::-1])[::-1]
+    def clean_zero(x):
+        return 0.0 if abs(x) < 1e-10 else x
+    ytick_labels = [f'{clean_zero(m):.1f}° {s:.1f}' for m, s in zip(mlat_ticks, s_ticks)]
+    ax.set_yticklabels(ytick_labels)
 
     if was_fig_none:
         plt.show()
@@ -88,11 +91,11 @@ if __name__ == '__main__':
     Bpara = bandpass_filter(run, B[..., 0, :], low_cutoff, high_cutoff) * run.unitB
 
     fig, ax = plt.subplots(5, 1, figsize=(10, 12), sharex=True)
-    draw_x1_time(run, Ephi[l3, l2, :, :], s=s, fig=fig, ax=ax[0], label='Ephi [mV/m]')
-    draw_x1_time(run, Er[l3, l2, :, :], s=s, fig=fig, ax=ax[1], label='Er [mV/m]')
-    draw_x1_time(run, Br[l3, l2, :, :], s=s, fig=fig, ax=ax[2], label='Br [nT]')
-    draw_x1_time(run, Bphi[l3, l2, :, :], s=s, fig=fig, ax=ax[3], label='Bphi [nT]')
-    draw_x1_time(run, Bpara[l3, l2, :, :], s=s, fig=fig, ax=ax[4], label='Bpara [nT]')
+    draw_x1_time(run, Ephi[l3, l2, :, :], i2, i3, fig=fig, ax=ax[0], label='Ephi [mV/m]')
+    draw_x1_time(run, Er[l3, l2, :, :], i2, i3, fig=fig, ax=ax[1], label='Er [mV/m]')
+    draw_x1_time(run, Br[l3, l2, :, :], i2, i3, fig=fig, ax=ax[2], label='Br [nT]')
+    draw_x1_time(run, Bphi[l3, l2, :, :], i2, i3, fig=fig, ax=ax[3], label='Bphi [nT]')
+    draw_x1_time(run, Bpara[l3, l2, :, :], i2, i3, fig=fig, ax=ax[4], label='Bpara [nT]')
     ax[2].set_xlabel('Time [s]')
     plt.tight_layout()
     plt.show()
