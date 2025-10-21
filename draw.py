@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 def draw_equatorial(run, z, fig=None, ax=None,
                     vec=None, vmin=None, vmax=None,
                     log=False, title=None, width=None,
-                    cmap = 'jet', colorbar=True, clabel=None):
+                    cmap = 'jet', colorbar=True, clabel=None,
+                    gridline=False):
     """
     z: (N3, N2) array
     vec: (N3, N2, 3) array in CARTESIAN coordinate
@@ -38,6 +39,14 @@ def draw_equatorial(run, z, fig=None, ax=None,
         ax.quiver(run.Xi[::skip3,::skip2,run.N1//2], run.Yi[::skip3,::skip2,run.N1//2], vec[::skip3,::skip2,0], vec[::skip3,::skip2,1],
                   angles='xy', scale_units='xy', scale=np.sqrt(vec[:,:,0]**2+vec[:,:,1]**2).max()*0.45,
                   color='white', alpha=0.7)
+
+    if gridline:
+        for i2 in range(run.N2):
+            ax.plot(run.Xh[:,i2,run.N1//2], run.Yh[:,i2,run.N1//2], color='black',
+                    linewidth=0.8 if i2 == 0 or i2 == run.N2-1 else 0.4, alpha=0.3)
+        for i3 in range(run.N3):
+            ax.plot(run.Xh[i3,:,run.N1//2], run.Yh[i3,:,run.N1//2], color='black', linewidth=0.4, alpha=0.3)
+
     # draw earth
     theta = np.linspace(0,2*np.pi,101)
     x = np.cos(theta)

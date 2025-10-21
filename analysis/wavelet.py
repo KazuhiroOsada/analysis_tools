@@ -1,3 +1,5 @@
+# Morlet wavelet is used. For details, see Torrence and Compo (1998).
+
 import sys
 sys.path.append('..')
 
@@ -35,7 +37,7 @@ def wavelet_transform(run, series):
     """
     arguments: run    -- Run object (data must be read at every time step)
                series -- (Nt,) time series data
-    return: freq -- (J,) frequencies
+    return: freq -- (J+1,) frequencies
             cwt  -- (J+1, Nt) wavelet transform coefficients
     """
     # constants for Morlet wavelet
@@ -68,6 +70,23 @@ def wavelet_transform(run, series):
     freq = s_to_f / s  # frequency corresponding to scale s
 
     return freq, cwt
+
+def get_freq(run):
+    """
+    arguments: run -- Run object
+    return: freq -- (J+1,) frequencies for the wavelet transform
+    """
+    n_cwt = int(2**(np.ceil(np.log2(run.Nt))))
+    dj = 0.125
+    omega0 = 6.0
+    dt = run.delt * run.ifdiag
+    s0 = 2 * dt
+
+    J = int(np.log2(n_cwt * dt / s0) / dj)
+    s = s0 * 2**(dj * np.arange(0, J+1, 1))
+    s_to_f = (omega0 + np.sqrt(2 + omega0**2)) / (4.0*np.pi)
+    freq = s_to_f / s  # frequency corresponding to scale s
+    return freq
 
 def calc_coi(run):
     """
@@ -111,7 +130,8 @@ def inverse_wavelet_transform(run, cwt):
                * np.pi ** (-0.25)
                * np.exp(-((s[j]*omega - omega0) ** 2) / 2.0)
                * Hev )
-        scale_factor = dj / s[j] * dt / (0.776) # 0.776: for Morlet wavelet with omega0=6
+        Cdelta = 0.776 # for Morlet wavelet with omega0=6
+        scale_factor = dj / s[j] * dt / Cdelta
         series_ft_rec += fft(cwt_padded[j,:], n=n_cwt) * Psi * scale_factor
 
     series_rec = ifft(series_ft_rec).real # into time domain

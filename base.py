@@ -41,7 +41,7 @@ class Run:
         self.eqreader = EquatorialDataReader(self)
 
     def read_parameters(self, filename='parameter.dat'):
-        path_of_file = os.path.join(self.prefix, 'parameter.dat')
+        path_of_file = os.path.join(self.prefix, filename)
         with open(path_of_file, 'rb') as f:
             # domain decompoition
             self.domain = np.fromfile(f, np.int32, 3)[::-1]
@@ -164,4 +164,12 @@ class Run:
             self.is_cartesian['current'] = True
         else:
             print(f'No transformation for {name}')
-        
+
+    def calc_electric_field(self):
+        """
+        calculate electric field from V and B
+        E = - V x B
+        """
+        Btot = self.B + self.B0[..., None]
+        E = - np.cross(self.V, Btot, axis=-2)
+        self.E = E * self.unitE / self.unitV / self.unitB

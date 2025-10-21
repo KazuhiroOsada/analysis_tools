@@ -83,11 +83,11 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
 if __name__ == '__main__':
     from chunk_reader import dist_reader, field_reader
 
-    i1, i2, i3 = 32, 4, 20
+    i1, i2, i3 = 32, 4, 200
 
     run = Run('../../run/case1b256')
     run.read('bg')
-    trange_v = (0, 101, 10)
+    trange_v = (0, 101, 5)
     run.set_trange(trange_v, 'v')
 
     d1, l1 = i1 // run.N1_local, i1 % run.N1_local
@@ -107,5 +107,5 @@ if __name__ == '__main__':
 
     for it in range(1, run.Nt_v):
         draw_on_velocity_space(run, dist[:, :, it], xaxis='vperp', B=Babs[it],
-                               fig=None, ax=None, log=True,
+                               fig=None, ax=None, log=False,
                                cmap='viridis', label='f [s^3/m^6]', title=f'Time = {run.time_v[it]:.1f} s')

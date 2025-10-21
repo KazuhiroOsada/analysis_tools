@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# TODO?: add VectorTransformer class to convert vector in dipole coordinate to spherical coordinate
+
 class ModifiedDipole:
     """
     Modified Dipole Coordinate (Kageyama et al. 2006)
