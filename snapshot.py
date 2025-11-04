@@ -43,7 +43,13 @@ def get_parser():
 
 def draw_snapshot(run, it, outdir='figure'):
     """
-    draw 4 equatorial colormaps (density, Pperp w/ vE, Jphi, dB w/ dB)
+    Draw 4 equatorial colormaps (density, Pperp w/ vE, Jphi, dB w/ dB)
+
+    Parameters
+    ----------
+    run    : Run object
+    it     : time index
+    outdir : output directory, 'figure' in default
     """
     fig, axes = plt.subplots(2, 2, figsize=(12, 12))
     width = np.ceil(run.Xi[0,0,run.N1//2])

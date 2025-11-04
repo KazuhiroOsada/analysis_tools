@@ -3,13 +3,17 @@ import numpy as np
 
 def coord_reader(filename, N1_local, N2_local, N3_local):
     """
-    filename = 'coord-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'coord-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    returns scalar(4)              : a, dx1, dx2, dx3
-            x1(N1_local), x2(N2_local), x3(N3_local) : logical grid points    
-            metric(N3_local, N2_local, N1_local, 3)  : h1, h2, h3
-            xyzi(N3_local, N2_local, N1_local, 3)    : cartesian coordinate at cell center
-            xyzh(N3_local, N2_local, N1_local, 3)    : cartesian coordinate at cell boundary
+
+    Returns
+    -------
+    scalar             : a, dx1, dx2, dx3
+    x1, x2, x3         : 1D arrays of logical grid points, shape=(N1_local,), (N2_local,), (N3_local,)
+    metric, xyzi, xyzh : h1, h2, h3 and cartesian coordinates at cell center and boundary
+                         shape=(N3_local, N2_local, N1_local, 3)
     """
     shape = (N3_local, N2_local, N1_local, 3)
     number_of_elements = np.prod(shape)
@@ -26,10 +30,15 @@ def coord_reader(filename, N1_local, N2_local, N3_local):
 
 def bg_reader(filename, N1_local, N2_local, N3_local):
     """
-    filename = 'bg-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'bg-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    returns B0(N3_local, N2_local, N1_local, 3) : background magnetic field [T]
-            Rho0(N3_local, N2_local, N1_local) : initial background density [/m^3]
+
+    Returns
+    -------
+    B0, Rho0 : background magnetic field [T], initial background density [/m^3]
+               shape=(N3_local, N2_local, N1_local, 3), (N3_local, N2_local, N1_local)
     """
     shape = (N3_local, N2_local, N1_local)
     number_of_elements = np.prod(shape)
@@ -40,11 +49,14 @@ def bg_reader(filename, N1_local, N2_local, N3_local):
 
 def field_reader(filename, N1_local, N2_local, N3_local, trange):
     """
-    filename = 'field-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'field-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    returns V(N3_local, N2_local, N1_local, 3, Nt) : velocity [m/s]
-            B(N3_local, N2_local, N1_local, 3, Nt) : magnetic field [T]
-            in dipole coordinate
+
+    Returns
+    -------
+    V, B : velocity [m/s], magnetic field [T], shape=(N3_local, N2_local, N1_local, 3, Nt)
     """
     tstep = range(*trange)
     Nt = len(tstep)
@@ -65,12 +77,15 @@ def field_reader(filename, N1_local, N2_local, N3_local, trange):
 
 def current_reader(filename, N1_local, N2_local, N3_local, trange):
     """
-    filename = 'current-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'current-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    returns Jd(N3_local, N2_local, N1_local, 3, Nt) : drift current [A/m^2]
-            Jm(N3_local, N2_local, N1_local, 3, Nt) : gyration current [A/m^2]
-            Je(N3_local, N2_local, N1_local, 3, Nt) : electron current [A/m^2]
-            Jp(N3_local, N2_local, N1_local, 3, Nt) : polarization current [A/m^2]
+
+    Returns
+    -------
+    Jd, Jm, Je, Jp : drift, gyration, electron, polarization current density [A/m^2]
+                     shape=(N3_local, N2_local, N1_local, 3, Nt)
     """
     tstep = range(*trange)
     Nt = len(tstep)
@@ -96,12 +111,16 @@ def current_reader(filename, N1_local, N2_local, N3_local, trange):
 
 def moment_reader(filename, N1_local, N2_local, N3_local, trange):
     """
-    filename = 'moment{s+1}-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'moment{s+1}-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    returns Rho(N3_local, N2_local, N1_local, Nt) : density [/m^3]
-            Vpa(N3_local, N2_local, N1_local, Nt) : bulk velocity [m/s]
-            Ppa(N3_local, N2_local, N1_local, Nt) : parallel pressure [Pa]
-            Ppe(N3_local, N2_local, N1_local, Nt) : perpendicular pressure [Pa]
+
+    Returns
+    -------
+    Rho, Vpa, Ppa, Ppe : density [/m^3], parallel bulk velocity [m/s],
+                         parallel pressure [Pa], perpendicular pressure [Pa]
+                         shape=(N3_local, N2_local, N1_local, Nt)
     """
     tstep = range(*trange)
     Nt = len(tstep)
@@ -126,10 +145,15 @@ def moment_reader(filename, N1_local, N2_local, N3_local, trange):
 
 def dist_reader(filename, N1_local, N2_local, N3_local, Nm, Nv, trange):
     """
-    filename = 'dist{s+1}-{d1}-{d2}-{d3}.dat'
+    Parameters
+    ----------
+    filename                     : 'dist{s+1}-{d1}-{d2}-{d3}.dat'
     N1_local, N2_local, N3_local : size of LOCAL gird
-    Nm, Nv : size of velocity grid (32 x 32)
-    returns dist(N3_local, N2_local, N1_local, Nm, Nv, Nt) : phase space density [/m^6]
+    Nm, Nv                       : size of velocity grid (32 x 32)
+
+    Returns
+    -------
+    dist : phase space density [/m^6], shape=(N3_local, N2_local, N1_local, Nm, Nv, Nt)
     """
     tstep = range(*trange)
     Nt = len(tstep)

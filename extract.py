@@ -1,3 +1,5 @@
+"""Check README.md for details """
+
 from optparse import OptionParser
 
 import numpy as np
@@ -61,6 +63,7 @@ def write_psd(opts):
     run.read('bg')
     run.read('field')
     run.read('dist')
+    run.calc_magnetic_amplitude()
     with open(opts.output, 'wb') as f:
         # array dimensions
         np.array([run.Ns, run.N3, run.N2, run.N1, run.Nm, run.Nv], np.int32).tofile(f)
@@ -68,9 +71,7 @@ def write_psd(opts):
         for it in range(run.Nt_v):
             print(f'writing data at t = {run.time_v[it]:.2f} [s]', end='\r')
             np.array([run.time_v[it]], np.float64).tofile(f)
-            B = run.B0 + run.B[..., it]
-            Babs = np.sqrt(B[..., 0]**2 + B[..., 1]**2 + B[..., 2]**2)
-            Babs.tofile(f)
+            run.Babs[..., it].tofile(f)
             if run.Ns == 1:
                 run.dist[..., it].tofile(f)
             else:

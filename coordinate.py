@@ -6,12 +6,18 @@ import matplotlib.pyplot as plt
 
 class ModifiedDipole:
     """
-    Modified Dipole Coordinate (Kageyama et al. 2006)
-
-    Modified dipole coordinate is defined from variable transformation from
-    the standard dipole coordinate.
+    Modified Dipole Coordinate (Kageyama et al. 2006) is defined from variable transformation from the standard dipole coordinate.
     """
     def __init__(self, Lmin, Lmax, Rmin, theta_min, N1, N2, stretch):
+        """
+        Parameters
+        ----------
+        Lmin, Lmax : L value range [Re]
+        Rmin       : minimum radial distance [Re]
+        theta_min  : minimum colatitude [rad]
+        N1, N2     : number of grid points in x1 and x2 direction
+        stretch    : stretching parameter for x1 coordinate [Re^2]
+        """
         self.Lmin = Lmin
         self.Lmax = Lmax
         self.Rmin = Rmin
@@ -31,6 +37,10 @@ class ModifiedDipole:
     def get_x1_axis(self):
         """
         x1 = arcsinh(a*-cos(theta)/r^2)/a_bar
+
+        Returns
+        -------
+        x1 : 1D array of x1 axis
         """
         a = self.stretch * self.Rmin**2
         a_bar = np.arcsinh(a)
@@ -40,6 +50,10 @@ class ModifiedDipole:
     def get_x2_axis(self):
         """
         x2 = sqrt(1/L)
+
+        Returns
+        -------
+        x2 : 1D array of x2 axis
         """
         x2min = np.sqrt(1/self.Re/self.Lmax)
         x2max = np.sqrt(1/self.Re/self.Lmin)
@@ -85,6 +99,8 @@ class VectorTransformer:
     """
     def __init__(self, x, y, z):
         """
+        Parameters
+        ----------
         x, y, z: coordinate in cartesian coordinate
         """
         r    = np.sqrt(x**2 + y**2 + z**2)

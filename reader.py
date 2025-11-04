@@ -13,6 +13,11 @@ max_workers = None
 class DataReader:
     """
     Reader for domain decomposed data files of GEMSIS-RC
+    This class is used internally in the Run class in base.py and stores data into the Run object
+
+    Parameters
+    ----------
+    run : Run object
     """
     def __init__(self, run):
         self.run = run
@@ -41,7 +46,7 @@ class DataReader:
         
     def read_coord(self):
         """
-        read 'coord-**-**-**.dat' files for coordinate data and parameters
+        Read 'coord-**-**-**.dat' files for coordinate data and parameters
         """
         shape_global = (self.N3, self.N2, self.N1, 3)
         # scalar and logical grid points
@@ -86,7 +91,7 @@ class DataReader:
 
     def read_bg(self):
         """
-        read 'bg-**-**-**.dat' files for background magnetic field and density
+        Read 'bg-**-**-**.dat' files for background magnetic field and density
         """
         shape_global_B0 = (self.N3, self.N2, self.N1, 3)
         shape_global_Rho0 = (self.N3, self.N2, self.N1)
@@ -110,7 +115,7 @@ class DataReader:
 
     def read_field(self, trange):
         """
-        read 'field-**-**-**.dat' files for magnetic field and electric drift
+        Read 'field-**-**-**.dat' files for magnetic field and electric drift
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -135,7 +140,7 @@ class DataReader:
 
     def read_current(self, trange):
         """
-        read 'current-**-**-**.dat' files for current density
+        Read 'current-**-**-**.dat' files for current density
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -165,7 +170,7 @@ class DataReader:
 
     def read_moment(self, trange, s=0):
         """
-        read 'moment{s+1}-**-**-**.dat' files for moments (density, parallel velocity, parallel pressure, perpendicular pressure)
+        Read 'moment{s+1}-**-**-**.dat' files for moments (density, parallel velocity, parallel pressure, perpendicular pressure)
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -205,7 +210,7 @@ class DataReader:
 
     def read_dist(self, trange, s=0):
         """
-        read 'dist{s+1}-**-**-**.dat' files for phase space density
+        Read 'dist{s+1}-**-**-**.dat' files for phase space density
         """
         tstep = range(*trange)
         Nt = len(tstep)

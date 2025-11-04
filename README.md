@@ -2,7 +2,7 @@
 
 GitHub: [https://github.com/KazuhiroOsada/analysis_tools](https://github.com/KazuhiroOsada/analysis_tools)
 
-**[Last update] 2025/09/19**
+**[Last update] 2025/11/04**
 
 ---
 
@@ -17,8 +17,7 @@ GEMSIS-RCで出力されたファイルを読み込むためのPythonスクリ�
 
 ## ファイル構成
 
-- `base.py` → `Run`（各ランでの設定・結果の格納）
-- `cfl.py` → Alfven速度によるCFL条件の計算
+- `base.py` → `Run`（各ランでの設定・結果の格納
 - `chunk_reader.py` → ドメイン単位でデータ読み込み
 - `coordinate.py` → `ModifiedDipole`（グリッドの計算・描画）、`VectorTransformer`（ダイポール座標ベクトルの変換）
 - `draw.py` → 描画関数

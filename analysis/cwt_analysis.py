@@ -70,6 +70,27 @@ class cwt_data:
                 self.mnumbers[i3, i2, :] = self.estimate_mnumber_at(i3, i2, n=n)
     
     def plot_estimation_validity(self, i3, i2):
+        """
+            while True:
+        i3, i2 = list(map(int, input('i3 i2: ').split()))
+        powers, peakfreq = data.find_max_power_freq_at(i3, i2, height=None)
+        mnumbers = data.estimate_mnumber_at(i3, i2, n=2)
+        fig, axes = plt.subplots(2, 1, figsize=(10,6))
+        draw_power_spectrum(run, run.E[i3,i2,2,:], fig=fig, ax=axes[0],
+                            fmin=1e-3, fmax=22e-3)
+        axes[0].plot(run.time, peakfreq, 'w-', lw=2)
+        axes[1].plot(run.time, mnumbers)
+        axes[1].set_ylabel('Azimuthal wave number m')
+        axes[1].set_xlabel('Time [s]')
+        ax2 = axes[1].twinx()
+        ax2.plot(run.time, np.abs(peakfreq / mnumbers), color='tab:orange')
+        ax2.set_ylabel('m / f [Hz]')
+        ax2.tick_params(axis='y')
+        axes[0].set_xlim(0, 6000)
+        axes[1].set_xlim(0, 6000)
+        plt.suptitle(f'i3={i3}, i2={i2}')
+        plt.show()
+        """
         pass
 
 
@@ -90,36 +111,24 @@ def estimate_mnumber_from_peaks(run, series, i3, i2, n=2):
     
 
 if __name__ == '__main__':
-    data = cwt_data('../../cwt/case1/Pc5_Ephi.npz')
+    import os
+    import time
 
-    run = Run('../../run/case1b256')
-    #run = Run('../../run/case2b256new')
-    #run = Run('../../run/case3b256')
-    run.set_trange((0, 2161, 1))
-    run.read_equatorial('bg')
-    run.read_equatorial('field')
-    run.calc_electric_field()
+    prefix = '../../cwt'
+    data_files = ['case1/Pc5_Ephi.npz',
+                  'case2/Pc5_Ephi.npz',
+                  'case3/Pc5_Ephi.npz']
+    # rundirs = ['case1b256', 'case2b256new', 'case3b256']
 
-    while True:
-        i3, i2 = list(map(int, input('i3 i2: ').split()))
-        powers, peakfreq = data.find_max_power_freq_at(i3, i2, height=None)
-        mnumbers = data.estimate_mnumber_at(i3, i2, n=2)
-        fig, axes = plt.subplots(2, 1, figsize=(10,6))
-        draw_power_spectrum(run, run.E[i3,i2,2,:], fig=fig, ax=axes[0],
-                            fmin=1e-3, fmax=22e-3)
-        axes[0].plot(run.time, peakfreq, 'w-', lw=2)
-        axes[1].plot(run.time, mnumbers)
-        axes[1].set_ylabel('Azimuthal wave number m')
-        axes[1].set_xlabel('Time [s]')
-        ax2 = axes[1].twinx()
-        ax2.plot(run.time, np.abs(peakfreq / mnumbers), color='tab:orange')
-        ax2.set_ylabel('m / f [Hz]')
-        ax2.tick_params(axis='y')
-        axes[0].set_xlim(0, 6000)
-        axes[1].set_xlim(0, 6000)
-        plt.suptitle(f'i3={i3}, i2={i2}')
-        plt.show()
-
-
-
-
+    for data_file in data_files:
+        t0 = time.time()
+        print(f'Processing {os.path.join(prefix, data_file)}...')
+        data = cwt_data(os.path.join(prefix, data_file))
+        data.find_max_power_freq_all()
+        data.estimate_mnumber_all(n=2)
+        np.savez(f'cwt_analysis_{data_file.replace("/", "_")}',
+                 max_power_freq = data.max_power_freq,
+                 max_power      = data.max_power,
+                 mnumbers       = data.mnumbers)
+        t1 = time.time()
+        print(f'Done in {t1 - t0:.1f} s') # the processing takes ~ 10 minutes

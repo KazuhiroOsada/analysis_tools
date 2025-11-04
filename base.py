@@ -9,9 +9,24 @@ from equatorial_reader import EquatorialDataReader
 
 class Run:
     """
-    Object contains the information/parameters for a specific run
-    ----------------------------
-    unit for physical quantities
+    This object reads and contains the information, parameters and data for a specific run,
+    and also provides some simple data processing methods
+    For details of data reading, see DataReader class in reader.py and EquatorialDataReader class in equatorial_reader.py
+
+    Parameters
+    ----------
+    prefix : directory path where data files are stored (parameter.dat is required)
+
+    Example
+    -------
+    >>> run = Run('run_directory')
+    >>> run.read('coord')
+    >>> run.Xi.shape # (N3, N2, N1)
+    >>> run.set_trange((0, 200, 1))
+    >>> run.read('field')
+    >>> run.B.shape # (N3, N2, N1, 3, Nt)
+
+    Unit for physical quantities
     ----------------------------
     - magnetic field  [nT]
     - electric field  [mV/m]
@@ -77,10 +92,12 @@ class Run:
 
     def set_trange(self, trange, target='f'):
         """
-        set time range for data extraction
-        trange = (begin, end, interval)
-        if target is 'f', set trange for field, current and moment
-        if target is 'v', set trange for dist
+        Set time range for data extraction
+        
+        Parameters
+        ----------
+        trange : tuple of (begin, end, interval)
+        target : 'f' for field/current/moment data, 'v' for dist data
         """
         if target == 'f':
             self.trange = trange
@@ -102,6 +119,13 @@ class Run:
             print('argument target should be f or v')
 
     def read(self, name):
+        """
+        Read data files and store them into the Run object
+
+        Parameters
+        ----------
+        name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
+        """
         if self.is_read[name]:
             print(f'{name} is already read')
         elif name == 'coord':
@@ -123,6 +147,13 @@ class Run:
         self.is_read[name] = True
 
     def read_equatorial(self, name):
+        """
+        Read data files on the equatorial plane and store them into the Run object
+
+        Parameters
+        ----------
+        name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
+        """
         if self.is_read[name]:
             print(f'{name} is already read')
         elif name == 'coord':
@@ -145,7 +176,11 @@ class Run:
 
     def transform(self, name):
         """
-        transform vector data from dipole to cartesian coordinate
+        Transform vector data from dipole to cartesian coordinate
+
+        Parameters
+        ----------
+        name : 'field' or 'current', vectors to be transformed
         """
         transformer = VectorTransformer(self.Xi, self.Yi, self.Zi)
         if name == 'field':
@@ -167,9 +202,17 @@ class Run:
 
     def calc_electric_field(self):
         """
-        calculate electric field from V and B
-        E = - V x B
+        Calculate electric field from V and B (E = - V x B)
+        Results are stored in self.E [mV/m] (shape: same as self.B and self.V)
         """
         Btot = self.B + self.B0[..., None]
         E = - np.cross(self.V, Btot, axis=-2)
         self.E = E * self.unitE / self.unitV / self.unitB
+
+    def calc_magnetic_amplitude(self):
+        """
+        Calculate magnetic field amplitude
+        Results are stored in self.Babs [nT] (shape: (N3, N2, N1, Nt) or (N3, N2, Nt))
+        """
+        Btot = self.B + self.B0[..., None]
+        self.Babs = np.linalg.norm(Btot, axis=-2)

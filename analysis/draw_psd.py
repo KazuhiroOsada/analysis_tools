@@ -29,7 +29,8 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
                xaxis -- 'mu' or 'vperp' (default: 'mu')
                B   -- magnetic field [nT] at the grid point where Z is calculated, required when xaxis='vperp'
     """
-    if fig is None or ax is None:
+    was_fig_none = fig is None or ax is None
+    if was_fig_none:
         fig, ax = plt.subplots(figsize=(8, 8))
 
     log_dm = (np.log10(run.mu[-1]) - np.log10(run.mu[0])) / (run.Nm - 1)
@@ -39,7 +40,7 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
 
     if xaxis == 'mu':
         x *= 1e-12 # eV/nT to keV/nT
-        X, Y = np.meshgrid(x,y)
+        X, Y = np.meshgrid(x, y, indexing='ij')
         ax.set_xscale('log')
         ax.set_xlabel('mu [keV/nT]')
     elif xaxis == 'vperp':
@@ -47,7 +48,7 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
             print('argument B is required when xaxis="vperp"')
             return
         x = convert_mu_to_vperp(x, B) * 1e-3 # to km/s
-        X, Y = np.meshgrid(x,y)
+        X, Y = np.meshgrid(x, y, indexing='ij')
         ax.set_xlabel('$v_{\perp}$ [km/s]')
         ax.set_aspect('equal')
     else:
@@ -62,11 +63,11 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
     if log:
         import matplotlib.colors as mcolors
         norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
-        pcm = ax.pcolormesh(X, Y, Z.T, norm=norm, cmap=cmap)
+        pcm = ax.pcolormesh(X, Y, Z, norm=norm, cmap=cmap)
         cbar = fig.colorbar(pcm, ax=ax)
         cbar.set_label('log$_{10}$('+label+')')
     else:
-        pcm = ax.pcolormesh(X, Y, Z.T, vmin=vmin, vmax=vmax, cmap=cmap)
+        pcm = ax.pcolormesh(X, Y, Z, vmin=vmin, vmax=vmax, cmap=cmap)
         cbar = fig.colorbar(pcm, ax=ax)
         cbar.set_label(label)
 
@@ -77,13 +78,14 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
         fig.savefig(savefile)
         plt.close(fig)
     else:
-        plt.show()
+        if was_fig_none:
+            plt.show()
 
 
 if __name__ == '__main__':
     from chunk_reader import dist_reader, field_reader
 
-    i1, i2, i3 = 32, 4, 200
+    i1, i2, i3 = 32, 4, 0
 
     run = Run('../../run/case1b256')
     run.read('bg')

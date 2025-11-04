@@ -13,7 +13,13 @@ max_workers = None
 class EquatorialDataReader:
     """
     Reader for domain decomposed data files of GEMSIS-RC
-    This class reads data files only on the equatorial plane (i1=N1//2)
+    This class is used internally in the Run class in base.py and stores data into the Run object
+    This class is designed to read data on the equatorial plane (i1 = N1//2) only in order to reduce memory usage
+
+    Parameters
+    ----------
+    run : Run object
+    i1  : index in x1 direction (default: N1//2)
     """
     def __init__(self, run, i1=None):
         self.run = run
@@ -48,7 +54,7 @@ class EquatorialDataReader:
 
     def read_coord(self):
         """
-        read 'coord-**-**-**.dat' files for coordinate data and parameters on the equatorial plane
+        Read 'coord-**-**-**.dat' files for coordinate data and parameters on the equatorial plane
         """
         shape_global = (self.N3, self.N2, self.N1_local,3)
         # scalar and logical grid points
@@ -82,7 +88,7 @@ class EquatorialDataReader:
 
     def read_bg(self):
         """
-        read 'bg-**-**-**.dat' files for background magnetic field and density on the equatorial plane
+        Read 'bg-**-**-**.dat' files for background magnetic field and density on the equatorial plane
         """
         shape_global_B0 = (self.N3, self.N2, self.N1_local, 3)
         shape_global_Rho0 = (self.N3, self.N2, self.N1_local)
@@ -106,7 +112,7 @@ class EquatorialDataReader:
 
     def read_field(self, trange):
         """
-        read 'field-**-**-**.dat' files for magnetic field and electric drift on the equatorial plane
+        Read 'field-**-**-**.dat' files for magnetic field and electric drift on the equatorial plane
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -130,7 +136,7 @@ class EquatorialDataReader:
 
     def read_current(self, trange):
         """
-        read 'current-**-**-**.dat' files for current density on the equatorial plane
+        Read 'current-**-**-**.dat' files for current density on the equatorial plane
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -159,7 +165,7 @@ class EquatorialDataReader:
 
     def read_moment(self, trange, s=0):
         """
-        read 'moment{s+1}-**-**-**.dat' files for moments on the equatorial plane
+        Read 'moment{s+1}-**-**-**.dat' files for moments on the equatorial plane
         """
         tstep = range(*trange)
         Nt = len(tstep)
@@ -198,7 +204,7 @@ class EquatorialDataReader:
 
     def read_dist(self, trange, s=0):
         """
-        read 'dist{s+1}-**-**-**.dat' files for phase space density on the equatorial plane
+        Read 'dist{s+1}-**-**-**.dat' files for phase space density on the equatorial plane
         """
         tstep = range(*trange)
         Nt = len(tstep)

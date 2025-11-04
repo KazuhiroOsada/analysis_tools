@@ -8,11 +8,22 @@ def draw_equatorial(run, z, fig=None, ax=None,
                     cmap = 'jet', colorbar=True, clabel=None,
                     gridline=False):
     """
-    z: (N3, N2) array
-    vec: (N3, N2, 3) array in CARTESIAN coordinate
-    log: if True, use log scale for colormap
-    vmin, vmax: min and max value for colormap
-    clabel: label for colorbar
+    Draw contour plot of Z(N3,N2) on the equatorial plane
+
+    Parameters
+    ----------
+    run        : Run object
+    z          : (N3, N2) array
+    fig, ax    : matplotlib Figure and Axes objects (if None, create new one)
+    vec        : (N3, N2, 2) array for vector field (if None, no vector field)
+    vmin, vmax : min and max value for colormap
+    log        : if True, use log scale for colormap
+    title      : title of the plot
+    width      : half width of the plot [Re] (if None, set automatically)
+    cmap       : colormap, 'jet' in default
+    colorbar   : if True, draw colorbar
+    clabel     : label for colorbar
+    gridline   : if True, draw grid lines
     """
     if not run.is_read['coord']:
         run.read('coord')
@@ -41,9 +52,9 @@ def draw_equatorial(run, z, fig=None, ax=None,
                   color='white', alpha=0.7)
 
     if gridline:
-        for i2 in range(run.N2):
+        for i2 in range(run.N2+1):
             ax.plot(run.Xh[:,i2,run.N1//2], run.Yh[:,i2,run.N1//2], color='black',
-                    linewidth=0.8 if i2 == 0 or i2 == run.N2-1 else 0.4, alpha=0.3)
+                    linewidth=0.8 if i2 == 0 or i2 == run.N2 else 0.4, alpha=0.3)
         for i3 in range(run.N3):
             ax.plot(run.Xh[i3,:,run.N1//2], run.Yh[i3,:,run.N1//2], color='black', linewidth=0.4, alpha=0.3)
 
@@ -72,10 +83,22 @@ def draw_meridial(run, z, i3, fig=None, ax=None,
                 log=False, title=None, rlim=(None, None), zlim=None,
                 cmap = 'jet', colorbar=True, clabel=None):
     """
-    z: (N2, N1) array
-    log: if True, use log scale for colormap
+    Draw contour plot of Z(N2,N1) on the meridional plane at i3
+
+    Parameters
+    ----------
+    run       : Run object
+    z         : (N2, N1) array
+    i3        : index in x3 direction
+    fig, ax.  : matplotlib Figure and Axes objects (if None, create new one)
     vmin, vmax: min and max value for colormap
-    clabel: label for colorbar        
+    log       : if True, use log scale for colormap
+    title     : title of the plot
+    rlim      : (rmin, rmax) for R axis [Re] (if None, set automatically)
+    zlim      : half width for Z axis [Re] (if None, set automatically)
+    cmap      : colormap, 'jet' in default
+    colorbar  : if True, draw colorbar
+    clabel    : label for colorbar
     """
     if not run.is_read['coord']:
         run.read('coord')
