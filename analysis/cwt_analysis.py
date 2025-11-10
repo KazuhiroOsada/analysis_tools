@@ -134,7 +134,7 @@ def estimate_mnumber_from_peaks(cwt_data, run, i3, i2, t_from=1000, t_to=4000, n
         t = m/omega * (phi-phi0) + t0
     where phi is the azimuthal angle, omega is the angular frequency, and m is the azimuthal wave number.
     The relation can be rewritten as:
-        t = m/(f*N3) * (i3 - i30) + t0
+        t = m/(f*N3) * (i3-i30) + t0
     Then m number can be estimated by linear fitting of the peak times at neighboring points.
     """
     from wavelet import bandpass_filter
@@ -157,28 +157,24 @@ def estimate_mnumber_from_peaks(cwt_data, run, i3, i2, t_from=1000, t_to=4000, n
         peaks = peaks[(t_from <= run.time[peaks]) & (run.time[peaks] <= t_to)]
         peaks_list.append(peaks)
 
-    # frequency and m number estimation by CWT
+    # frequency estimation by CWT
     _, freq_cwt = cwt_data.find_max_power_freq_at(i3, i2) # (Nt,)
 
     # estimate m numbers for each peak
     time_peaks = run.time[peaks_list[n]]
-    mnum_peaks = np.zeros_like(time_peaks)
+    mnum_peaks = np.full(len(time_peaks), np.nan)
     for i, peak in enumerate(peaks_list[n]):
         if np.isnan(freq_cwt[peak]):
-            mnum_peaks[i] = np.nan
             continue
         for m in range(n,0,-1):
             i3_offsets = np.arange(-m, m+1)
             times = [run.time[peaks_list[j][i]] for j in range(n-m, n+m+1)]
             a, _ = np.polyfit(i3_offsets, times, 1)
             fit_values = a*i3_offsets + times[m]
-            print(np.corrcoef(times, fit_values), np.corrcoef(times, fit_values)[0,1])
-            r = np.corrcoef(times, fit_values)[0,1] # r was almost 1 in practice
-            if r > 0.9:
+            corr = np.corrcoef(times, fit_values)[0,1] # r was almost 1 in practice
+            if corr > 0.9:
                 mnum_peaks[i] = a * freq_cwt[peak] * run.N3 # m = slope * f * N3
                 break
-            else:
-                mnum_peaks[i] = np.nan
     return time_peaks, mnum_peaks
 
 def main1():
@@ -201,7 +197,6 @@ def main2():
     cwt_files = ['case1/Pc5_Ephi.npz',
                   'case2/Pc5_Ephi.npz',
                   'case3/Pc5_Ephi.npz']
-    # rundirs = ['case1b256', 'case2b256new', 'case3b256']
 
     for cwt_file in cwt_files:
         t0 = time.time()
@@ -215,6 +210,7 @@ def main2():
                  mnumbers       = data.mnumbers)
         t1 = time.time()
         print(f'Done in {t1 - t0:.1f} s') # the processing takes ~ 10 minutes
+
 
 def main3():
     cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
@@ -245,4 +241,3 @@ def main3():
 
 if __name__ == '__main__':
     main1()
-    #main3()
