@@ -10,10 +10,15 @@ from wavelet import wavelet_transform, get_freq
 
 def find_bandpass_indices(freq, low_cutoff, high_cutoff):
     """
-    arguments: freq        -- (J+1,) frequencies in reverse order
-               low_cutoff  -- low cutoff frequency [Hz]
-               high_cutoff -- high cutoff frequency [Hz]
-    return: i_start, i_end -- indices for bandpass range
+    Parameters
+    ----------
+    freq        : (J+1,) frequencies in reverse order
+    low_cutoff  : low cutoff frequency [Hz]
+    high_cutoff : high cutoff frequency [Hz]
+
+    Returns
+    -------
+    i_start, i_end : indices for bandpass range
     """
     mask = (low_cutoff <= freq) & (freq <= high_cutoff)
     idx = np.where(mask)[0]
@@ -23,10 +28,17 @@ def find_bandpass_indices(freq, low_cutoff, high_cutoff):
 
 def compute_cwt_equatorial(run, series, low_cutoff, high_cutoff):
     """
-    arguments: run         -- Run object (data must be read at every time step)
-               series      -- (N3, N2, Nt) array of time series data
-               low_cutoff  -- low cutoff frequency [Hz]
-               high_cutoff -- high cutoff frequency [Hz]
+    Parameters
+    ----------
+    run        : Run object
+    series     : (N3, N2, Nt) array of time series data
+    low_cutoff : low cutoff frequency [Hz]
+    high_cutoff: high cutoff frequency [Hz]
+
+    Returns
+    -------
+    freq : (n_freq,) frequencies in bandpass range
+    cwts : (N3, N2, n_freq, Nt) array of CWT coefficients
     """
     # wavelet transform parameters
     freq = get_freq(run)

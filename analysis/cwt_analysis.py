@@ -6,11 +6,15 @@ import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
 from base import Run
-from draw import draw_equatorial
-from wavelet import draw_power_spectrum, bandpass_filter
 
 
-class cwt_data:
+class CwtData:
+    """
+    Parameters
+    ----------
+    filename : .npz file containing 'freq' and 'cwts'
+    dt       : time step [s] (default: 5.0 s)
+    """
     def __init__(self, filename, dt=5.0):
         """
         arguments: filename -- path to .npz file containing 'freq' and 'cwts'
@@ -60,7 +64,7 @@ class cwt_data:
             dphi = 2*np.pi/self.N3
             phi = np.arange(-n,n+1)*dphi
             mnumbers[it], _ = np.polyfit(phi, phase_neighbors, 1)
-            mnumbers *= -1 # possibly due to the definition of mother wavelet
+            mnumbers[it] *= -1 # due to the definition of mother wavelet
         return mnumbers
 
     def estimate_mnumber_all(self, n=2):
@@ -69,66 +73,176 @@ class cwt_data:
             for i2 in range(self.N2):
                 self.mnumbers[i3, i2, :] = self.estimate_mnumber_at(i3, i2, n=n)
     
-    def plot_estimation_validity(self, i3, i2):
+    def plot_estimation_validity(self, run, i3, i2, low_cutoff=1e-3, high_cutoff=22e-3, t_from=1000, t_to=4000):
         """
-            while True:
-        i3, i2 = list(map(int, input('i3 i2: ').split()))
-        powers, peakfreq = data.find_max_power_freq_at(i3, i2, height=None)
-        mnumbers = data.estimate_mnumber_at(i3, i2, n=2)
-        fig, axes = plt.subplots(2, 1, figsize=(10,6))
-        draw_power_spectrum(run, run.E[i3,i2,2,:], fig=fig, ax=axes[0],
-                            fmin=1e-3, fmax=22e-3)
-        axes[0].plot(run.time, peakfreq, 'w-', lw=2)
-        axes[1].plot(run.time, mnumbers)
-        axes[1].set_ylabel('Azimuthal wave number m')
-        axes[1].set_xlabel('Time [s]')
-        ax2 = axes[1].twinx()
-        ax2.plot(run.time, np.abs(peakfreq / mnumbers), color='tab:orange')
-        ax2.set_ylabel('m / f [Hz]')
-        ax2.tick_params(axis='y')
-        axes[0].set_xlim(0, 6000)
-        axes[1].set_xlim(0, 6000)
-        plt.suptitle(f'i3={i3}, i2={i2}')
+        Make a summary plot to check the validity of the analysis at (i3, i2), comparing CWT-based and peak-based m number estimation.
+
+        Parameters
+        ----------
+        run    : Run object, with electric field data calculated
+        i3, i2 : indices in x2 and x3 directions
+        """
+        from wavelet import bandpass_filter, draw_power_spectrum
+
+        _, peakfreq = self.find_max_power_freq_at(i3, i2)
+        mnumbers_cwt = self.estimate_mnumber_at(i3, i2, n=2)
+        time_peaks, mnumbers_peaks = estimate_mnumber_from_peaks(self, run, i3, i2, n=2, low_cutoff=low_cutoff, high_cutoff=high_cutoff, t_from=t_from, t_to=t_to)
+        fig, axes = plt.subplots(3, 1, figsize=(10,8), sharex=True)
+
+        axes[0].set_title(f'i3={i3}, i2={i2}')
+
+        axes[0].plot(run.time, bandpass_filter(run, run.E[(i3-2)%run.N3,i2,2,:], low_cutoff, high_cutoff), label=f'i3={(i3-2)%run.N3}')
+        axes[0].plot(run.time, bandpass_filter(run, run.E[i3           ,i2,2,:], low_cutoff, high_cutoff), label=f'i3={i3}')
+        axes[0].plot(run.time, bandpass_filter(run, run.E[(i3+2)%run.N3,i2,2,:], low_cutoff, high_cutoff), label=f'i3={(i3+2)%run.N3}')
+        axes[0].legend()
+        axes[0].set_ylabel('Ephi [mV/m]')
+
+        draw_power_spectrum(run, run.E[i3,i2,2,:], fig=fig, ax=axes[1], fmin=low_cutoff, fmax=high_cutoff, fontsize=20, unit='mV/m', label='$E_\phi$')
+        axes[1].plot(run.time, peakfreq, color='white',lw=2)
+
+        axes[2].plot(run.time, mnumbers_cwt, label='CWT-based', color='tab:blue')
+        axes[2].scatter(time_peaks, mnumbers_peaks, label='Peak-based', color='tab:orange', s=10)
+        axes[2].grid()
+        axes[2].set_ylabel('m number')
+        axes[2].set_xlabel('Time [s]')
+        axes[2].legend()
+
         plt.show()
-        """
-        pass
 
+def estimate_mnumber_from_peaks(cwt_data, run, i3, i2, t_from=1000, t_to=4000, n=2, low_cutoff=1e-3, high_cutoff=22e-3):
+    """
+    Estimate m numbers from time of peaks of the poloidal electric field time series at (i3, i2) and its neighboring points.
 
-def estimate_mnumber_from_peaks(run, series, i3, i2, n=2):
+    Parameters
+    ----------
+    cwt_data     : CwtData object
+    run          : Run object, with electric field data calculated
+    i3, i2       : indices of the spatial point
+    t_from, t_to : time range [s] for the estimation
+    n            : number of neighboring points to consider
+
+    Returns
+    -------
+    time_peaks : times of detected peaks [s]
+    mnum_peaks : estimated m numbers at the peak times
+
+    Note
+    ----
+    In this function, it is assumed that the wave is almost coherent in the azimuthal direction within the range of consideration,
+    therefore, each peak in the time series at (i3, i2) are expected to correspond to peaks at neighboring i3 points.
+    Time of these peaks, t, will satisfy the relation:
+        t = m/omega * (phi-phi0) + t0
+    where phi is the azimuthal angle, omega is the angular frequency, and m is the azimuthal wave number.
+    The relation can be rewritten as:
+        t = m/(f*N3) * (i3 - i30) + t0
+    Then m number can be estimated by linear fitting of the peak times at neighboring points.
     """
-    arguments: run -- Run object (data must be read at every time step)
-               series -- (N3, N2, Nt) array of time series data
-               i3, i2 -- indices of the spatial point
-    return: mnumbers -- (Nt,) estimated azimuthal wave numbers
-    """
+    from wavelet import bandpass_filter
+    from scipy.signal import find_peaks
+
     i3_neighbors = np.arange(i3-n, i3+n+1) % run.N3
-    return
 
+    # bandpass Ephi at neighboring points
+    Ephi_neighbors = []
+    for i3_n in i3_neighbors:
+        Ephi_n = bandpass_filter(run, run.E[i3_n, i2, 2, :], low_cutoff, high_cutoff)
+        Ephi_neighbors.append(Ephi_n)
 
+    # find peaks in time range at neighboring points
+    peaks_list = []
+    for Ephi_n in Ephi_neighbors:
+        peaks_maximum, _ = find_peaks(Ephi_n)
+        peaks_minimum, _ = find_peaks(-Ephi_n)
+        peaks = np.sort(np.concatenate((peaks_maximum, peaks_minimum)))
+        peaks = peaks[(t_from <= run.time[peaks]) & (run.time[peaks] <= t_to)]
+        peaks_list.append(peaks)
 
+    # frequency and m number estimation by CWT
+    _, freq_cwt = cwt_data.find_max_power_freq_at(i3, i2) # (Nt,)
 
+    # estimate m numbers for each peak
+    time_peaks = run.time[peaks_list[n]]
+    mnum_peaks = np.zeros_like(time_peaks)
+    for i, peak in enumerate(peaks_list[n]):
+        if np.isnan(freq_cwt[peak]):
+            mnum_peaks[i] = np.nan
+            continue
+        for m in range(n,0,-1):
+            i3_offsets = np.arange(-m, m+1)
+            times = [run.time[peaks_list[j][i]] for j in range(n-m, n+m+1)]
+            a, _ = np.polyfit(i3_offsets, times, 1)
+            fit_values = a*i3_offsets + times[m]
+            print(np.corrcoef(times, fit_values), np.corrcoef(times, fit_values)[0,1])
+            r = np.corrcoef(times, fit_values)[0,1] # r was almost 1 in practice
+            if r > 0.9:
+                mnum_peaks[i] = a * freq_cwt[peak] * run.N3 # m = slope * f * N3
+                break
+            else:
+                mnum_peaks[i] = np.nan
+    return time_peaks, mnum_peaks
 
-    
+def main1():
+    run = Run('../../run/case1b256')
+    run.set_trange((0, 2161, 1))
+    run.read_equatorial('bg')
+    run.read_equatorial('field')
+    run.calc_electric_field()
 
-if __name__ == '__main__':
+    cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
+    while True:
+        i3, i2 = list(map(int, input('i3, i2 = ').split()))
+        cwt_data.plot_estimation_validity(run, i3, i2, low_cutoff=1e-3, high_cutoff=7e-3, t_from=1500, t_to=3500)
+
+def main2():
     import os
     import time
 
     prefix = '../../cwt'
-    data_files = ['case1/Pc5_Ephi.npz',
+    cwt_files = ['case1/Pc5_Ephi.npz',
                   'case2/Pc5_Ephi.npz',
                   'case3/Pc5_Ephi.npz']
     # rundirs = ['case1b256', 'case2b256new', 'case3b256']
 
-    for data_file in data_files:
+    for cwt_file in cwt_files:
         t0 = time.time()
-        print(f'Processing {os.path.join(prefix, data_file)}...')
-        data = cwt_data(os.path.join(prefix, data_file))
+        print(f'Processing {os.path.join(prefix, cwt_file)}...')
+        data = CwtData(os.path.join(prefix, cwt_file))
         data.find_max_power_freq_all()
         data.estimate_mnumber_all(n=2)
-        np.savez(f'cwt_analysis_{data_file.replace("/", "_")}',
+        np.savez(f'cwt_analysis_{cwt_file.replace("/", "_")}',
                  max_power_freq = data.max_power_freq,
                  max_power      = data.max_power,
                  mnumbers       = data.mnumbers)
         t1 = time.time()
         print(f'Done in {t1 - t0:.1f} s') # the processing takes ~ 10 minutes
+
+def main3():
+    cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
+
+    i3, i2 = 10, 4
+    n = 2
+
+    peakfreq = cwt_data.find_max_power_freq_at(i3, i2)[1]
+
+    i3_neighbors = np.arange(i3-n, i3+n+1) % cwt_data.N3
+    for it in range(cwt_data.Nt):
+        if np.isnan(peakfreq[it]):
+            continue
+        freq_idx = np.where(cwt_data.freq == peakfreq[it])[0][0]
+        phase_neighbors = np.angle(cwt_data.cwts[i3_neighbors, i2, freq_idx, it])
+        phase_neighbors_unwrapped = np.unwrap(phase_neighbors)
+        dphi = 2*np.pi/cwt_data.N3
+        phi = np.arange(-n,n+1)*dphi
+        mnumber, _ = np.polyfit(phi, phase_neighbors_unwrapped, 1)
+        fig, ax = plt.subplots()
+        ax.plot(phi, phase_neighbors_unwrapped, 'o', label='unwrapped')
+        ax.plot(phi, mnumber*phi + phase_neighbors_unwrapped[n], '-', label='fit')
+        ax.plot(phi, phase_neighbors, 'x', label='wrapped')
+        ax.legend()
+        ax.set_title(f't={cwt_data.time[it]:.1f} s, mnumber={mnumber:.2f}')
+        plt.show()
+
+
+if __name__ == '__main__':
+    main1()
+    #main3()

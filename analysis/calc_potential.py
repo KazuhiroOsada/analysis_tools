@@ -36,26 +36,28 @@ if __name__ == '__main__':
     import os
     from draw import draw_equatorial
 
-    rundir = input('rundir:')
-    run = Run(f'../../run/{rundir}')
-    run.read_equatorial('bg')
-    run.read('coord')
-    run.set_trange((0, 1801, 20))
-    run.read_equatorial('field')
-    run.read_equatorial('moment')
-    run.calc_electric_field()
+    rundirs = ['case1b256', 'case2b256new', 'case3b256']
+    runs = []
+    
+    for rundir in rundirs:
+        run = Run(f'../../run/{rundir}')
+        run.read_equatorial('bg')
+        run.read('coord')
+        run.set_trange((0, 2161, 20))
+        run.read_equatorial('field')
+        run.read_equatorial('moment')
+        run.calc_electric_field()
+        runs.append(run)
 
     for it in range(run.Nt):
-        potential = calc_potential(run, run.E[..., it])
-        fig, axes = plt.subplots(2, 1, figsize=(8, 10))
-        fig.suptitle(f'Time = {run.time[it]:.1f} s')
-        for ax in axes:
-            ctr = ax.contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], potential, colors='white', linewidths=1.0, levels=np.arange(-40, 41, 10))
-            ax.contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], potential, colors='white', linewidths=0.3, levels=np.arange(-40, 41, 2))
-            ax.clabel(ctr, fmt='%d', colors='white', fontsize=8)
-        draw_equatorial(run, run.Rho[..., it], fig=fig, ax=axes[0], vmin=1, vmax=800, log=True, clabel='Density [/cc]')
-        draw_equatorial(run, run.Ppe[..., it], fig=fig, ax=axes[1], vmin=1e-4, vmax=10, log=True, clabel='$P_\perp$ [nPa]')
-        if not os.path.exists(f'potential_{rundir}'):
-            os.makedirs(f'potential_{rundir}')
-        plt.savefig(os.path.join(f'potential_{rundir}', f'{it:04d}.png'))
+        fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+        fig.suptitle(f'Time = {runs[0].time[it]:.1f} s', fontsize=24)
+        for i, run in enumerate(runs):
+            axes[i].set_title(f'Case {i+1}', fontsize=22)
+            potential = calc_potential(run, run.E[..., it])    
+            ctr = axes[i].contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], potential, colors='white', linewidths=1.0, levels=np.arange(-40, 41, 10))
+            axes[i].contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], potential, colors='white', linewidths=0.3, levels=np.arange(-40, 41, 2))
+            axes[i].clabel(ctr, fmt='%d', colors='white', fontsize=8)
+            draw_equatorial(run, run.Ppe[..., it], fig=fig, ax=axes[i], vmin=1e-4, vmax=10, log=True, clabel='$P_\perp$ [nPa]', width=8.0, cfs=20)
+        plt.savefig(f'temp/{it:04d}.png')
         plt.close()

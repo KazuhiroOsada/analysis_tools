@@ -1,5 +1,3 @@
-# Morlet wavelet is used. For details, see Torrence and Compo (1998).
-
 import sys
 sys.path.append('..')
 
@@ -14,11 +12,18 @@ from base import Run
 
 def bandpass_filter(run, series, low_cutoff, high_cutoff):
     """
-    arguments: run         -- Run object (data must be read at every time step)
-               series      -- (Nt,) time series data
-               low_cutoff  -- low cutoff frequency [Hz]
-               high_cutoff -- high cutoff frequency [Hz]
-    return: series_filtered -- (Nt,) filtered time series data
+    FFT-based bandpass filter
+
+    Parameters
+    ----------
+    run         : Run object (data must be read at every time step)
+    series      : time series data, (Nt,)
+    low_cutoff  : low cutoff frequency [Hz]
+    high_cutoff : high cutoff frequency [Hz]
+
+    Returns
+    -------
+    series_filtered : filtered time series data, (Nt,)
     """
     dt = run.delt * run.ifdiag
     window = np.hanning(run.Nt)
@@ -35,10 +40,17 @@ def bandpass_filter(run, series, low_cutoff, high_cutoff):
 
 def wavelet_transform(run, series):
     """
-    arguments: run    -- Run object (data must be read at every time step)
-               series -- (Nt,) time series data
-    return: freq -- (J+1,) frequencies
-            cwt  -- (J+1, Nt) wavelet transform coefficients
+    Morlet wavelet transform See Torrence and Compo (1998) for details, especially Table 1 and 2.
+
+    Parameters
+    ----------
+    run    : Run object (data must be read at every time step)
+    series : time series data, (Nt,)
+
+    Returns
+    -------
+    freq : frequencies, (J+1,)
+    cwt  : wavelet transform coefficients, (J+1, Nt)
     """
     # constants for Morlet wavelet
     n_cwt = int(2**(np.ceil(np.log2(len(series)))))
@@ -73,8 +85,15 @@ def wavelet_transform(run, series):
 
 def get_freq(run):
     """
-    arguments: run -- Run object
-    return: freq -- (J+1,) frequencies for the wavelet transform
+    Get frequencies for the wavelet transform
+
+    Parameters
+    ----------
+    run    : Run object
+
+    Returns
+    -------
+    freq -- frequencies for the wavelet transform, (J+1,)
     """
     n_cwt = int(2**(np.ceil(np.log2(run.Nt))))
     dj = 0.125
@@ -90,8 +109,15 @@ def get_freq(run):
 
 def calc_coi(run):
     """
-    arguments: run -- Run object
-    return: coi -- (Nt,) cone of influence of the wavelet transform
+    Calculate cone of influence (COI) of the wavelet transform
+
+    Parameters
+    ----------
+    run    : Run object
+
+    Returns
+    -------
+    coi -- cone of influence of the wavelet transform, (Nt,)
     """
     omega0 = 6.0
     s_to_f = (omega0 + np.sqrt(2 + omega0**2)) / (4.0*np.pi)
@@ -105,9 +131,16 @@ def calc_coi(run):
 
 def inverse_wavelet_transform(run, cwt):
     """
-    arguments: run -- Run object
-               cwt -- (J+1, Nt) wavelet transform coefficients
-    return: series -- (Nt,) reconstructed time series data
+    Inverse Morlet wavelet transform
+
+    Parameters
+    ----------
+    run    : Run object
+    cwt    : wavelet transform coefficients, (J+1, Nt)
+
+    Returns
+    -------
+    series : reconstructed time series data, (Nt,)
     """
     # constants for Morlet wavelet
     Nt = cwt.shape[1]
@@ -143,8 +176,21 @@ def draw_power_spectrum(run, series, fig=None, ax=None,
                         flog=True, fmin=1e-3, fmax=22e-3, vmax=None,
                         cmap='jet', fontsize=20, unit='unit', label=''):
     """
-    arguments: run    -- Run object (data must be read at every time step)
-               series -- (Nt,) time series data
+    Draw power spectrum obtained by the wavelet transform
+
+    Parameters
+    ----------
+    run      : Run object (data must be read at every time step)
+    series   : time series data, (Nt,)
+    fig, ax  : matplotlib Figure and Axes objects (if None, create new)
+    flog     : if True, use log scale for frequency axis
+    fmin     : min frequency for frequency axis [Hz]
+    fmax     : max frequency for frequency axis [Hz]
+    vmax     : max value for log10(power)
+    cmap     : colormap, 'jet' in default
+    fontsize : font size for labels
+    unit     : physical unit of the series
+    label    : label to be shown on the contour plot
     """
     if fig is None or ax is None:
         fig, ax = plt.subplots()

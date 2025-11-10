@@ -62,29 +62,33 @@ def compare_points():
         runs.append(run)
 
     points = [(4, 0), (4, 10), (4, 20)]
+
+    from growthrate import main
+    for run, cwt_file in zip(runs, filenames):
+        run.gss = []
+        for point in points:
+            i2, i3 = point
+            time_v, gs = main(run, cwt_file, i2, i3)
+            run.time_g = time_v
+            run.gss.append(gs)
+
     lynestyles = ['solid', 'dashed', 'dotted']
-
     fig, axes = plt.subplots(4, 1, figsize=(10,12))
-
-    print(run.max_power.shape)
-
     colors = ['tab:blue', 'tab:orange', 'tab:green']
     for i, run in enumerate(runs):
-    
         for j, point in enumerate(points):
-            axes[0].plot(run.time, np.log10(run.max_power[point[1], point[0], :]),
+            axes[0].plot(run.time, run.max_power[point[1], point[0], :],
                          color=colors[i], label=f'Case {i+1}, i3 = {point[1]}', linestyle=lynestyles[j])
             axes[1].plot(run.time, run.max_power_freq[point[1], point[0], :],
                          color=colors[i], linestyle=lynestyles[j])
             axes[2].plot(run.time, np.abs(run.mnumbers[point[1], point[0], :]),
                          color=colors[i], linestyle=lynestyles[j])
-            axes[3].plot(run.time, run.max_power_freq[point[1], point[0], :] / np.abs(run.mnumbers[point[1], point[0], :]),
+            axes[3].plot(run.time_g, run.gss[j],
                          color=colors[i], linestyle=lynestyles[j])
     axes[0].set_ylabel('Power log10([mV/m]^2)')
     axes[1].set_ylabel('Frequency [Hz]')
     axes[2].set_ylabel('m number')
-    axes[3].set_ylabel('Frequency / m number [Hz]')
-    axes[3].set_ylim(0, 1e-3)
+    axes[3].set_ylabel('Growth rate [1/s]')
     axes[3].set_xlabel('Time [s]')
     axes[0].legend()
     for ax in axes:

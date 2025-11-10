@@ -11,8 +11,14 @@ from wavelet import bandpass_filter
 
 def calc_field_aligned_axis(run, i2, i3):
     """
-    arguments: run -- Run object
-    return: s -- (N1+1,) field aligned coordinate for pcolormesh [Re]
+    Parameters
+    ----------
+    run    : Run object
+    i2, i3 : indices in x2 and x3 direction
+
+    Returns
+    -------
+    s : (N1+1,) array of field-aligned coordinate [Re]
     """
     s = np.zeros(run.N1+1)
     for i1 in range(run.N1//2,0,-1):
@@ -22,8 +28,17 @@ def calc_field_aligned_axis(run, i2, i3):
 
 def draw_x1_time(run, z, i2, i3, fig=None, ax=None, vmax=None, cmap='coolwarm', label=''):
     """
-    arguments: run -- Run object
-               z   -- (N1, Nt) array
+    Draw wave contour plot on x1 time plane at given (i2, i3)
+
+    Parameters
+    ----------
+    run    : Run object
+    z      : (N1, Nt) array
+    i2, i3 : indices in x2 and x3 direction
+    fig, ax: matplotlib Figure and Axes objects (if None, create new)
+    vmax   : max value for color scale
+    cmap   : colormap 'coolwarm' in default
+    label  : colorbar label
     """
     was_fig_none = fig is None or ax is None
     if was_fig_none:

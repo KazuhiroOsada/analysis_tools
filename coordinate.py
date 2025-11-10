@@ -26,15 +26,15 @@ class ModifiedDipole:
         self.N2 = N2
         self.stretch = stretch
         self.Re = 6.378e6
-        x1 = self.get_x1_axis()
-        x2 = self.get_x2_axis()
+        x1 = self._get_x1_axis()
+        x2 = self._get_x2_axis()
         self.x1, self.x2 = np.meshgrid(x1, x2, indexing='ij')
-        self.r, self.theta = self.transform2polar(self.x1, self.x2)
+        self.r, self.theta = self._transform2polar(self.x1, self.x2)
         # transform to cartesian coordinate
         self.x = self.r*np.sin(self.theta)
         self.z = self.r*np.cos(self.theta)
-    
-    def get_x1_axis(self):
+
+    def _get_x1_axis(self):
         """
         x1 = arcsinh(a*-cos(theta)/r^2)/a_bar
 
@@ -47,7 +47,7 @@ class ModifiedDipole:
         x1_max = np.arcsinh(a*-np.cos(self.theta_min)/(self.Rmin*self.Re)**2)/a_bar
         return np.linspace(-x1_max, x1_max, self.N1)
 
-    def get_x2_axis(self):
+    def _get_x2_axis(self):
         """
         x2 = sqrt(1/L)
 
@@ -59,9 +59,18 @@ class ModifiedDipole:
         x2max = np.sqrt(1/self.Re/self.Lmin)
         return np.linspace(x2min, x2max, self.N2)
 
-    def transform2polar(self, x1, x2):
+    def _transform2polar(self, x1, x2):
         """
         Transform dipole coordinate to polar coordinate
+
+        Parameters
+        ----------
+        x1, x2 : modified dipole coordinate
+
+        Returns
+        -------
+        r     : radial distance [Re]
+        theta : colatitude [rad]
         """
         a = self.stretch * self.Rmin**2
         a_bar = np.arcsinh(a)
@@ -80,7 +89,7 @@ class ModifiedDipole:
     
     def draw_RZ_plane(self):
         """
-        draw grid on R-Z plane
+        Draw grid on R-Z plane
         """
         fig, ax = plt.subplots()
         for i1 in range(self.N1):

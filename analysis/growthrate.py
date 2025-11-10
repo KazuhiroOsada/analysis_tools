@@ -32,7 +32,7 @@ def calc_bounce_and_drift_freqs(run, B, i2):
     Parameters
     ----------
     run : Run object
-    B   : magnetic field strength [T]
+    B   : magnetic field strength [T] at magnetic equator
     L   : L value
 
     Returns
@@ -103,7 +103,21 @@ def calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv):
     B_m, B, B_p          : magnetic field strength [T] at i2-1, i2, i2+1
     i2                   : global index for x2 direction
     im, iv               : indices for mu and vpara
+
+    Returns
+    -------
+    dfdL [s^3/m^6]
+
+    Notes
+    -----
+    The calculation is not allowed at the boundaries of i2 and vpara.
     """
+    if i2 == 0 or i2 == run.N2 - 1:
+        print(f'df/dL calculation at the x2 boundary (i2 = {i2}) is not allowed, then return nan.')
+        return np.nan
+    if iv == 0 or iv == run.Nv - 1:
+        print(f'df/dL calculation at the vpara boundary (iv = {iv}) is not allowed, then return nan.')
+        return np.nan
     L = 1 / run.x2**2 / run.Re # (N2,)
     # find vpara at i2-1 and i2+1 for conservation of mu and W
     Wpara_p = run.mu[im] * (B - B_p) * run.Qp + 1/2 * run.Mp * run.vp[iv]**2
@@ -128,10 +142,13 @@ def calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv):
         dist_m = np.exp(log_dist_m)
         return (dist_p - dist_m) / (L[i2+1] - L[i2-1])
 
-def calc_growth_rate(run, dist_m, dist_p, dist, B_m, B, B_p, i2, omega, m, n=0, threshold=1e-2):
+def calc_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
+                              i2, omega, m, n=0, threshold=1e-2):
     """
-    gamma1 = pimu0/3 v^5/(2mwd+wb)1/(B^2R^2) (dWdL)^2 df/dW|_{mu,L}
-    gamma2 = gamma2 = pi*mu0/3v^5/(2mwd+wb) * 1/(B^2R^2) * dWdL * df/dL|_{mu,W}
+    Calculation of growth rate on velocity space
+    Implementation of the growth rate calculation following Southwood (1969)
+    gamma1 = pi*mu0/3v^5/(2mwd+wb) * 1/(B^2R^2) * (dWdL)^2 * df/dW|_{mu,L}
+    gamma2 = pi*mu0/3v^5/(2mwd+wb) * 1/(B^2R^2) *  dWdL    * df/dL|_{mu,W}
     gamma = gamma1 + gamma2
     
     Parameters
@@ -143,23 +160,19 @@ def calc_growth_rate(run, dist_m, dist_p, dist, B_m, B, B_p, i2, omega, m, n=0, 
     omega                : wave angular frequency [rad/s]
     m                    : azimuthal wave number
     n                    : harmonic number (default: 0 (fundamental))
-    threshold            : when (omega - m*wd - n*wb) / omega < threshold resonance is considered (default: 1e-2)
+    threshold            : when {(omega - m*wd - n*wb) / omega < threshold} is satisfied resonance is considered (default: 1e-2)
 
     Returns
     -------
-    gamma1 : growth rate component from df/dW [1/s]
-    gamma2 : growth rate component from df/dL [1/s]
-    gamma  : total growth rate [1/s]
-    indices: (im, iv) indices where the maximum growth rate occurs
+    gamma1 : growth rate component from df/dW [1/s], shape=(Nm,Nv)
+    gamma2 : growth rate component from df/dL [1/s], shape=(Nm,Nv)
+    gamma  : total growth rate [1/s], shape=(Nm,Nv)
     """
     vperp = calc_vperp(run, B)
     wb, wd = calc_bounce_and_drift_freqs(run, B, i2) # (Nm, Nv), (Nm, Nv)
     resonance_condition = omega - m * wd - n * wb # (Nm, Nv)
-    from draw_psd import draw_on_velocity_space
-    draw_on_velocity_space(run, resonance_condition)
     dWdL = calc_dWdL(run, B, i2, omega, m)
-    gamma1, gamma2, gamma = 0.0, 0.0, 0.0
-    indices = (-999, -999)
+    gamma1, gamma2 = np.full((run.Nm, run.Nv), np.nan), np.full((run.Nm, run.Nv), np.nan)
     for im in range(1,run.Nm-1):
         for iv in range(1,run.Nv-1):
             if resonance_condition[im, iv] < threshold * omega:
@@ -168,27 +181,48 @@ def calc_growth_rate(run, dist_m, dist_p, dist, B_m, B, B_p, i2, omega, m, n=0, 
                 prefactor = (( np.pi * run.mu0 / 3) * np.sqrt(vperp[im]**2 + run.vp[iv]**2)**5 
                             / (2 * m * wd[im, iv] + wb[im, iv])
                             / (B**2 * run.Re**2))
-                g1 = prefactor * dWdL**2 * dfdW
-                g2 = prefactor * dWdL * dfdL
-                g = g1 + g2
-                if g > gamma:
-                    gamma1 = g1
-                    gamma2 = g2
-                    gamma = g
-                    indices = (im, iv)
-    return gamma1, gamma2, gamma, indices
-                
+                gamma1[im, iv] = prefactor * dWdL**2 * dfdW
+                gamma2[im, iv] = prefactor * dWdL    * dfdL
+    return gamma1, gamma2, gamma1 + gamma2
 
-if __name__ == '__main__':
+def draw_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
+                              i2, omega, m, n=0, threshold=1e-2):
+    """
+    Make a summary plot of growth rate on velocity space
+
+    Parameters
+    ----------
+    Same as calc_gamma_velocity_space 
+    """
     from draw_psd import draw_on_velocity_space
+    pass
 
-    i1, i2, i3 = 32, 4, 40
+def calc_gamma(run, dist_m, dist_p, dist, B_m, B, B_p,
+               i2, omega, m, n=0, threshold=1e-2):
+    """
+    Calculate growth rate on velocity space and return the maximum value as a local growth rate
 
-    run = Run('../../run/case1b256')
+    Parameters
+    ----------
+    Same as calc_gamma_velocity_space
+
+    Returns
+    -------
+    gamma : local growth rate [1/s]
+    """
+    gamma1, gamma2, gamma = calc_gamma_velocity_space(
+        run, dist_m, dist_p, dist, B_m, B, B_p,
+        i2, omega, m, n, threshold
+    )
+    return gamma.max()
+    
+
+def main(run, cwt_file, i2, i3):
     run.read('coord')
-    trange_v = (20, 31, 1)
-    run.set_trange(trange_v, 'v')
+    trange_v = (20, 61, 10)
+    run.set_trange(trange_v, 'v')  
 
+    i1 = 32  # fixed i1 index
     d1, l1 = i1 // run.N1_local, i1 % run.N1_local
     d2, l2 = i2 // run.N2_local, i2 % run.N2_local
     d3, l3 = i3 // run.N3_local, i3 % run.N3_local
@@ -207,15 +241,14 @@ if __name__ == '__main__':
     B_i2  = np.linalg.norm(B0[l3, l2, l1, :, None]   + B[l3, l2, l1, :, :], axis=0)   # (Nt,)
     B_i2m = np.linalg.norm(B0[l3, l2-1, l1, :, None] + B[l3, l2-1, l1, :, :], axis=0) # (Nt,)
 
-    max_power_freq, max_power, mnumbers = read_cwt_analysis_data('../../cwt/cwt_analysis_case1_Pc5_Ephi.npz')
+    max_power_freq, max_power, mnumbers = read_cwt_analysis_data(cwt_file)
 
+    gs = np.zeros(run.Nt_v)
     for it in range(run.Nt_v):
-        print(f'Time = {run.time_v[it]:.1f} s')
-        power = max_power[i3, i2, int(run.time_v[it] / 5.0)]
         omega = 2 * np.pi * max_power_freq[i3, i2, int(run.time_v[it] / 5.0)]
         m = np.abs(mnumbers[i3, i2, int(run.time_v[it] / 5.0)])
-        print(f'power = {np.log10(power):.3e}, omega = {omega:.3e} rad/s, m = {m}')
-        g1, g2, g, (im, iv) = calc_growth_rate(
+        #print(f'power = {np.log10(power):.3e}, omega = {omega:.3e} rad/s, m = {m}')
+        g = calc_gamma(
             run,
             dist_i2m[:, :, it],
             dist_i2p[:, :, it],
@@ -225,8 +258,29 @@ if __name__ == '__main__':
             B_i2p[it],
             i2,
             omega,
-            m,
+            -m,
             n=0,
-            threshold=2000
+            threshold=1e-1
         )
-        print(f'Growth rates: gamma1 = {g1:.3e} 1/s, gamma2 = {g2:.3e} 1/s, total gamma = {g:.3e} 1/s at im={im}, iv={iv}') 
+        #print(f'Growth rates: gamma1 = {g1:.3e} 1/s, gamma2 = {g2:.3e} 1/s, total gamma = {g:.3e} 1/s at im={im}, iv={iv}')
+        gs[it] = g
+        print(f'Time = {run.time_v[it]:.1f} s', gs[it])
+    return run.time_v, gs
+       
+
+if __name__ == '__main__':
+    from draw_psd import draw_on_velocity_space
+
+    i1, i2, i3 = 32, 4, 0
+
+    gss = []
+    for rundir, case in [('case1b256', 'case1'), ('case2b256new', 'case2'), ('case3b256', 'case3')]:
+        cwt_file = f'cwt_analysis_{case}_Pc5_Ephi.npz'
+        run = Run(f'../../run/{rundir}/')
+        time_v, gs = main(run, cwt_file, i2, i3)
+        gss.append(gs)
+    for i, gs in enumerate(gss):
+        plt.plot(time_v, gs, label=f'Run {i+1}')
+    plt.legend()
+    plt.show()
+

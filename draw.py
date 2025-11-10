@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 def draw_equatorial(run, z, fig=None, ax=None,
                     vec=None, vmin=None, vmax=None,
                     log=False, title=None, width=None,
-                    cmap = 'jet', colorbar=True, clabel=None,
+                    cmap = 'jet', colorbar=True, clabel=None, cfs=None,
                     gridline=False):
     """
     Draw contour plot of Z(N3,N2) on the equatorial plane
@@ -23,6 +23,7 @@ def draw_equatorial(run, z, fig=None, ax=None,
     cmap       : colormap, 'jet' in default
     colorbar   : if True, draw colorbar
     clabel     : label for colorbar
+    cfs        : font size for colorbar label
     gridline   : if True, draw grid lines
     """
     if not run.is_read['coord']:
@@ -43,7 +44,7 @@ def draw_equatorial(run, z, fig=None, ax=None,
     if colorbar:
         cbar = fig.colorbar(pcm, ax=ax)
         if clabel is not None:
-            cbar.set_label(clabel)
+            cbar.set_label(clabel, fontsize=cfs)
     # vector field
     if vec is not None:
         skip2, skip3 = 2, 4 # reduce arrow density
@@ -150,7 +151,7 @@ if __name__ == "__main__":
     run = Run('../run/case1/')
     run.read('coord')
     trange = tuple(map(int,input().split()))
-    run.set_trange(trange) # t = 3600 s
+    run.set_trange(trange)
     run.read('moment')
 
     draw_meridial(run, run.Ppa[0, :, :, 0], 0)
