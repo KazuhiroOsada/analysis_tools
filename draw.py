@@ -26,8 +26,8 @@ def draw_equatorial(run, z, fig=None, ax=None,
     cfs        : font size for colorbar label
     gridline   : if True, draw grid lines
     """
-    if not run.is_read['coord']:
-        run.read('coord')
+    # TODO: coordが全体なのか赤道面でのものなのか判定する
+    # TODO: sliceを設定すればいい
     was_fig_none = fig is None or ax is None
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))

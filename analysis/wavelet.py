@@ -113,11 +113,11 @@ def calc_coi(run):
 
     Parameters
     ----------
-    run    : Run object
+    run : Run object
 
     Returns
     -------
-    coi -- cone of influence of the wavelet transform, (Nt,)
+    coi : cone of influence of the wavelet transform, (Nt,)
     """
     omega0 = 6.0
     s_to_f = (omega0 + np.sqrt(2 + omega0**2)) / (4.0*np.pi)

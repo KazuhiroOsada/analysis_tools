@@ -9,9 +9,17 @@ from base import Run
 
 def calc_potential(run, E):
     """
-    arguments: run -- Run object
-               E   -- (N3, N2, 3) array of electric field [mV/m]
-    return: potential -- (N3, N2) array of electric potential [kV]
+    Parameters
+    ----------
+    run : Run object
+    E   : (N3, N2, 3) array of electric field [mV/m] in dipole coordinate
+
+    Returns
+    -------
+    potential : (N3, N2) array of electric potential [kV]
+
+    Note
+    ----
     (i2, i3) = (0, 0) point is set to zero potential
     """
     potential = np.zeros((run.N3, run.N2))

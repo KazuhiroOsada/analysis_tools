@@ -58,6 +58,9 @@ def draw_snapshot(run, it, outdir='figure'):
     draw_equatorial(run, run.Rho[..., it], fig, axes[0, 0],
                     vmin=1, vmax=800, log=True,
                     title='Density [/cc]', width=width)
+    ctr = axes[0,0].contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], run.potential[..., it], colors='white', linewidths=1.0, levels=np.arange(-40, 41, 10))
+    axes[0,0].contour(run.Xi[..., run.N1//2], run.Yi[..., run.N1//2], run.potential[..., it], colors='white', linewidths=0.3, levels=np.arange(-40, 41, 2))
+    axes[0,0].clabel(ctr, fmt='%d', colors='white', fontsize=8)
     axes[0,0].text(-(width+1),width+1,'a',fontsize=24,fontweight='bold')
     # (b) Pperp w/ vE
     draw_equatorial(run, run.Ppe[..., it], fig, axes[0, 1], vec=run.V[..., it],
@@ -89,6 +92,7 @@ def draw_snapshot(run, it, outdir='figure'):
     plt.close(fig)
     
 def main():
+    from analysis.calc_potential import calc_potential
     opts = get_parser()
     run = Run(opts.rundir)
     run.read('coord')
@@ -97,6 +101,10 @@ def main():
     run.read_equatorial('field')
     run.read_equatorial('current')
     run.read_equatorial('moment')
+    run.calc_electric_field()
+    run.potential = np.zeros((run.N3, run.N2, run.Nt))
+    for it in range(run.Nt):
+        run.potential[..., it] = calc_potential(run, run.E[..., it])
     transformer = VectorTransformer(run.Xi[:,:,run.N1//2], run.Yi[:,:,run.N1//2], run.Zi[:,:,run.N1//2])
     run.B0 = transformer(run.B0)
     for it in range(run.Nt):

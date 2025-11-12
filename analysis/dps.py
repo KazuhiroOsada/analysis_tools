@@ -8,12 +8,18 @@ from base import Run
 
 def calc_total_energy(run):
     """
-    arguments: run -- Run object
-    return   : time series of total energy in the simulation domain [J]
-    
+    Integrate the kinetic energy density over the simulation domain to get total energy
     (kinetic energy density [J/m^3]) = 3/2 (total pressure [Pa])
                                      = 1/2 (parallel pressure [Pa]) + (perpendicular pressure [Pa])
-    (total energy [J]) = ∫ (kinetic energy density) dV
+    (total energy [J]) = \int (kinetic energy density) dV
+
+    Parameters
+    ----------
+    run : Run object
+
+    Returns
+    -------
+    total_energy : [J] (Nt,)
     """
     energy_density = (0.5 * run.Ppa + run.Ppe) / run.unitP # [J/m^3]
     dV = run.h1 * run.dx1 * run.h2 * run.dx2 * run.h3 * run.dx3 # [m^3]
@@ -24,11 +30,17 @@ def calc_total_energy(run):
  
 def calc_SYM_H(run):
     """
-    arguments: run -- Run object
-    return   : time series of SYM-H index [nT]
-
+    Estimate SYM-H index based on DPS relation
     (SYM-H [nT]) = 4/3 * -2 (total energy [J]) / Me (dipole moment [A m^2])
-    4/3 : factor to convert magnetic depression at center of Earth to that on ground
+    where 4/3 is a factor to convert magnetic depression at center of Earth to that on ground
+
+    Parameters
+    ----------
+    run : Run object
+
+    Returns
+    -------
+    sym_h : [nT], (Nt,)
     """
     total_energy = calc_total_energy(run) # [J]
     Me_Am2 = np.abs(run.Me) * 1.0e7 # [T m^3] to [A m^2]

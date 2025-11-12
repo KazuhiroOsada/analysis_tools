@@ -178,13 +178,13 @@ def estimate_mnumber_from_peaks(cwt_data, run, i3, i2, t_from=1000, t_to=4000, n
     return time_peaks, mnum_peaks
 
 def main1():
-    run = Run('../../run/case1b256')
+    run = Run('../../run/case2b256new')
     run.set_trange((0, 2161, 1))
     run.read_equatorial('bg')
     run.read_equatorial('field')
     run.calc_electric_field()
 
-    cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
+    cwt_data = CwtData('../../cwt/case2/Pc5_Ephi.npz')
     while True:
         i3, i2 = list(map(int, input('i3, i2 = ').split()))
         cwt_data.plot_estimation_validity(run, i3, i2, low_cutoff=1e-3, high_cutoff=7e-3, t_from=1500, t_to=3500)
@@ -210,7 +210,6 @@ def main2():
                  mnumbers       = data.mnumbers)
         t1 = time.time()
         print(f'Done in {t1 - t0:.1f} s') # the processing takes ~ 10 minutes
-
 
 def main3():
     cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
