@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 from base import Run
 from chunk_reader import bg_reader, field_reader, dist_reader
-from draw_cwt_analysis import read_cwt_analysis_data
 
 
 def calc_vperp(run, B):
@@ -124,11 +123,12 @@ def calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv):
     Wpara_m = run.mu[im] * (B - B_m) * run.Qp + 1/2 * run.Mp * run.vp[iv]**2
     vpara_m = np.sqrt(2 / run.Mp * Wpara_m) * np.sign(run.vp[iv])
     # interpolate log(dist) at vpara_p and vpara_m
+    eps = 1e-300 # to avoid log(0)
     if Wpara_p < 0: # not enough parallel energy to reach the point i2+1 (stronger B)
         iv_m = np.searchsorted(run.vp, vpara_m) # vp[iv_m-1] < vpara_m <= vp[iv_m]
         if iv_m < run.Nv:
-            log_dist_m = ( np.log(dist_m[im, iv_m-1]) * (run.vp[iv_m] - vpara_m)
-                         + np.log(dist_m[im, iv_m]) * (vpara_m - run.vp[iv_m-1]) ) / (run.vp[iv_m] - run.vp[iv_m-1])
+            log_dist_m = ( np.log(dist_m[im, iv_m-1] + eps) * (run.vp[iv_m] - vpara_m)
+                         + np.log(dist_m[im, iv_m] + eps) * (vpara_m - run.vp[iv_m-1]) ) / (run.vp[iv_m] - run.vp[iv_m-1])
             dist_m_interp = np.exp(log_dist_m)
         else:
             # in some cases, vpara_m is larger than the maximum vp, then use the value at the maximum vp
@@ -139,22 +139,22 @@ def calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv):
         iv_p = np.searchsorted(run.vp, vpara_p) # vp[iv_p-1] < vpara_p <= vp[iv_p]
         iv_m = np.searchsorted(run.vp, vpara_m) # vp[iv_m-1] < vpara_m <= vp[iv_m]
         if iv_m < run.Nv: 
-            log_dist_p = ( np.log(dist_p[im, iv_p-1]) * (run.vp[iv_p] - vpara_p)
-                         + np.log(dist_p[im, iv_p]) * (vpara_p - run.vp[iv_p-1]) ) / (run.vp[iv_p] - run.vp[iv_p-1])
-            log_dist_m = ( np.log(dist_m[im, iv_m-1]) * (run.vp[iv_m] - vpara_m)
-                         + np.log(dist_m[im, iv_m]) * (vpara_m - run.vp[iv_m-1]) ) / (run.vp[iv_m] - run.vp[iv_m-1])
+            log_dist_p = ( np.log(dist_p[im, iv_p-1] + eps) * (run.vp[iv_p] - vpara_p)
+                         + np.log(dist_p[im, iv_p] + eps) * (vpara_p - run.vp[iv_p-1]) ) / (run.vp[iv_p] - run.vp[iv_p-1])
+            log_dist_m = ( np.log(dist_m[im, iv_m-1] + eps) * (run.vp[iv_m] - vpara_m)
+                         + np.log(dist_m[im, iv_m] + eps) * (vpara_m - run.vp[iv_m-1]) ) / (run.vp[iv_m] - run.vp[iv_m-1])
             dist_p_interp = np.exp(log_dist_p)
             dist_m_interp = np.exp(log_dist_m)
         else:
             # in some cases, vpara_m is larger than the maximum vp, then use the value at the maximum vp
-            log_dist_p = ( np.log(dist_p[im, iv_p-1]) * (run.vp[iv_p] - vpara_p)
-                         + np.log(dist_p[im, iv_p]) * (vpara_p - run.vp[iv_p-1]) ) / (run.vp[iv_p] - run.vp[iv_p-1])
+            log_dist_p = ( np.log(dist_p[im, iv_p-1] + eps) * (run.vp[iv_p] - vpara_p)
+                         + np.log(dist_p[im, iv_p] + eps) * (vpara_p - run.vp[iv_p-1]) ) / (run.vp[iv_p] - run.vp[iv_p-1])
             dist_p_interp = np.exp(log_dist_p)
             dist_m_interp = dist_m[im, -1]          
         return (dist_p_interp - dist_m_interp) / (L[i2+1] - L[i2-1])
 
-def calc_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
-                              i2, omega, m, n=0, threshold=1e-2):
+def calc_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
+                              i2, omega, m, n=0, threshold=0.5):
     """
     Calculation of growth rate on velocity space
     Implementation of the growth rate calculation following Southwood (1969)
@@ -171,13 +171,14 @@ def calc_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
     omega                : wave angular frequency [rad/s]
     m                    : azimuthal wave number
     n                    : harmonic number (default: 0 (fundamental))
-    threshold            : when {(omega - m*wd - n*wb) / omega < threshold} is satisfied resonance is considered (default: 1e-2)
+    threshold            : when {(omega - m*wd - n*wb) / omega < threshold} is satisfied resonance is considered (default: 0.5)
 
     Returns
     -------
-    gamma1 : growth rate component from df/dW [1/s], shape=(Nm,Nv)
-    gamma2 : growth rate component from df/dL [1/s], shape=(Nm,Nv)
-    gamma  : total growth rate [1/s], shape=(Nm,Nv)
+    gamma1              : growth rate component from df/dW [1/s], shape=(Nm,Nv)
+    gamma2              : growth rate component from df/dL [1/s], shape=(Nm,Nv)
+    gamma               : total growth rate [1/s], shape=(Nm,Nv)
+    resonance_condition : (omega - m*wd - n*wb) [rad/s], shape=(Nm,Nv)
 
     Note
     ----
@@ -201,8 +202,8 @@ def calc_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
                 gamma[im, iv] = gamma1[im, iv] + gamma2[im, iv]
     return gamma1, gamma2, gamma, resonance_condition
 
-def draw_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
-                              i2, omega, m, n=0, threshold=1e-2, title='', filename=None):
+def draw_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
+                              i2, omega, m, n=0, threshold=0.5, title='', filename=None):
     """
     Make a summary plot of growth rate on velocity space
     axes[0] : distribution function
@@ -213,10 +214,14 @@ def draw_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
     Parameters
     ----------
     Same as calc_gamma_velocity_space
+
+    Returns
+    -------
+    Same as calc_gamma_velocity_space
     """
     from draw_psd import draw_on_velocity_space
 
-    gamma1, _, gamma, rsc = calc_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
+    gamma1, gamma2, gamma, rsc = calc_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
                                                       i2, omega, m, n, threshold)
     
     fig, axes = plt.subplots(1, 4, figsize=(18,6))
@@ -233,259 +238,129 @@ def draw_gamma_velocity_space(run, dist_m, dist_p, dist, B_m, B, B_p,
                            fig=fig, ax=axes[3], title='Resonance condition', cmap='coolwarm', vmin=-1.0, vmax=1.0)
     draw_on_velocity_space(run, (np.abs(rsc) < threshold * omega).astype(float),
                            xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[3], cmap='binary', vmin=0, vmax=1, alpha=0.2, colorbar=False, title='$|\omega - m\omega_d|/\omega$')
+    # add drift frequency contours
     for ax in axes:
         _, wd = calc_bounce_and_drift_freqs(run, B, i2)
         vperp = calc_vperp(run, B) * 1e-3 # to km/s
         x, y = np.meshgrid(vperp, run.vp*1e-3, indexing='ij')
         ctr = ax.contour(x, y, wd*1e3/(2*np.pi), colors='gray', linestyles='dashed')
         ax.clabel(ctr, fmt='%.2f', colors='gray', fontsize=8)
-    
-    plt.show()
+
     if filename is not None:
-        fig.savefig(filename)    
+        fig.savefig(filename)
+    else:
+        plt.show()
     plt.close(fig)
 
-def calc_gamma(run, dist_m, dist_p, dist, B_m, B, B_p,
-               i2, omega, m, n=0, threshold=1e-2):
+    return gamma1, gamma2, gamma, rsc
+
+def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True):
     """
-    Calculate growth rate on velocity space and return the maximum value as a local growth rate
+    Calculate time series of growth rate
 
     Parameters
     ----------
-    Same as calc_gamma_velocity_space
+    run                 : Run object with coord data and trange_v set
+    cwt_analysis_file   : .npz file created by cwt_analysis.py
+    i3, i2              : indices in x3 and x2 directions
+    n                   : harmonic number (default: 0 (fundamental))
+    threshold           : when {(omega - m*wd - n*wb) / omega < threshold} is satisfied resonance is considered (default: 0.5)
+    no_plot             : if False, make summary plots to visualize the calculation (default: True)
 
     Returns
     -------
-    gamma : local growth rate [1/s]
+    time     : time array [s], shape=(Nt_v,)
+    gamma1s  : growth rate component from df/dW [1/s], shape=(Nt_v,)
+    gamma2s  : growth rate component from df/dL [1/s], shape=(Nt_v,)
+    gammas   : total growth rate [1/s], shape=(Nt_v,)
+    ims, ivs : indices where gammas are maximized, shape=(Nt_v,)
+    res_dist : resonant PSD [s^3/m^6], shape=(Nt_v,)
     """
-    gamma1, gamma2, gamma, _ = calc_gamma_velocity_space(
-        run, dist_m, dist_p, dist, B_m, B, B_p,
-        i2, omega, m, n, threshold
-    )
-    return np.nanmax(gamma)
-    
-
-def main(run, cwt_file, i2, i3):
-    run.read('coord')
-    trange_v = (20, 71, 5)
-    run.set_trange(trange_v, 'v')  
-
-    i1 = 32  # fixed i1 index
+    i1 = run.N1//2 # equatorial plane
     d1, l1 = i1 // run.N1_local, i1 % run.N1_local
     d2, l2 = i2 // run.N2_local, i2 % run.N2_local
     d3, l3 = i3 // run.N3_local, i3 % run.N3_local
 
     file_path_dist = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    dist = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, trange_v)
-    dist_i2p = dist[l3, l2+1, l1, :, :, :] # (Nm, Nv, Nt)
-    dist_i2  = dist[l3, l2, l1, :, :, :]   # (Nm, Nv, Nt)
-    dist_i2m = dist[l3, l2-1, l1, :, :, :] # (Nm, Nv, Nt)
+    d = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, run.trange_v)
+    dist_p = d[l3, l2+1, l1, :, :, :] # (Nm, Nv, Nt)
+    dist   = d[l3, l2,   l1, :, :, :] # (Nm, Nv, Nt)
+    dist_m = d[l3, l2-1, l1, :, :, :] # (Nm, Nv, Nt)
 
     file_path_bg = os.path.join(run.prefix, f'bg-{d1:02d}-{d2:02d}-{d3:02d}.dat')
     B0, _ = bg_reader(file_path_bg, run.N1_local, run.N2_local, run.N3_local)
     file_path_field = os.path.join(run.prefix, f'field-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    _, B = field_reader(file_path_field, run.N1_local, run.N2_local, run.N3_local, run.trange)
-    B_i2p = np.linalg.norm(B0[l3, l2+1, l1, :, None] + B[l3, l2+1, l1, :, :], axis=0) # (Nt,)
-    B_i2  = np.linalg.norm(B0[l3, l2, l1, :, None]   + B[l3, l2, l1, :, :], axis=0)   # (Nt,)
-    B_i2m = np.linalg.norm(B0[l3, l2-1, l1, :, None] + B[l3, l2-1, l1, :, :], axis=0) # (Nt,)
+    _, b = field_reader(file_path_field, run.N1_local, run.N2_local, run.N3_local, run.trange)
+    B_m = np.linalg.norm(B0[l3, l2-1, l1, :, None] + b[l3, l2-1, l1, :, :], axis=0) # (Nt,)
+    B   = np.linalg.norm(B0[l3, l2,   l1, :, None] + b[l3, l2,   l1, :, :], axis=0) # (Nt,)
+    B_p = np.linalg.norm(B0[l3, l2+1, l1, :, None] + b[l3, l2+1, l1, :, :], axis=0) # (Nt,)
 
-    max_power_freq, max_power, mnumbers = read_cwt_analysis_data(cwt_file)
+    data = np.load(cwt_analysis_file)
+    freq = data['max_power_freq']
+    mnums = data['mnumbers']
 
-    threshold = 0.01
-    gs = np.zeros(run.Nt_v)
+    gamma1s  = np.full(run.Nt_v, np.nan)
+    gamma2s  = np.full(run.Nt_v, np.nan)
+    gammas   = np.full(run.Nt_v, np.nan)
+    ims      = np.zeros(run.Nt_v, dtype=int)
+    ivs      = np.zeros(run.Nt_v, dtype=int)
+    res_dist = np.full(run.Nt_v, np.nan)
     for it in range(run.Nt_v):
-        omega = 2 * np.pi * max_power_freq[i3, i2, int(run.time_v[it] / 5.0)]
-        m = np.abs(mnumbers[i3, i2, int(run.time_v[it] / 5.0)])
-        draw_gamma_velocity_space(
-            run,
-            dist_i2m[:, :, it],
-            dist_i2p[:, :, it],
-            dist_i2[:, :, it],
-            B_i2m[it],
-            B_i2[it],
-            B_i2p[it],
-            i2,
-            omega,
-            -m,
-            n=0,
-            threshold=threshold,
-            title=f't={run.time_v[it]:.1f}s, m={m:.2f}, f={omega/(2*np.pi)*1e3:.2f} mHz',
-            filename=f'gamma_t{int(run.time_v[it]):04d}_th{int(threshold*100):02d}.png'
-        )
-    return run.time_v, gs
-
-def calc_gamma_time_series(run, cwt_file, i2, i3):
-    run.read('coord')
-    trange_v = (0, 71, 1)
-    run.set_trange(trange_v, 'v')  
-
-    i1 = 32  # fixed i1 index
-    d1, l1 = i1 // run.N1_local, i1 % run.N1_local
-    d2, l2 = i2 // run.N2_local, i2 % run.N2_local
-    d3, l3 = i3 // run.N3_local, i3 % run.N3_local
-
-    file_path_dist = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    dist = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, trange_v)
-    dist_i2p = dist[l3, l2+1, l1, :, :, :] # (Nm, Nv, Nt)
-    dist_i2  = dist[l3, l2, l1, :, :, :]   # (Nm, Nv, Nt)
-    dist_i2m = dist[l3, l2-1, l1, :, :, :] # (Nm, Nv, Nt)
-
-    file_path_bg = os.path.join(run.prefix, f'bg-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    B0, _ = bg_reader(file_path_bg, run.N1_local, run.N2_local, run.N3_local)
-    file_path_field = os.path.join(run.prefix, f'field-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    _, B = field_reader(file_path_field, run.N1_local, run.N2_local, run.N3_local, run.trange)
-    B_i2p = np.linalg.norm(B0[l3, l2+1, l1, :, None] + B[l3, l2+1, l1, :, :], axis=0) # (Nt,)
-    B_i2  = np.linalg.norm(B0[l3, l2, l1, :, None]   + B[l3, l2, l1, :, :], axis=0)   # (Nt,)
-    B_i2m = np.linalg.norm(B0[l3, l2-1, l1, :, None] + B[l3, l2-1, l1, :, :], axis=0) # (Nt,)
-
-    max_power_freq, max_power, mnumbers = read_cwt_analysis_data(cwt_file)
-
-    gs = np.zeros(run.Nt_v)
-    for it in range(run.Nt_v):
-        omega = 2 * np.pi * max_power_freq[i3, i2, int(run.time_v[it] / 5.0)]
-        m = np.abs(mnumbers[i3, i2, int(run.time_v[it] / 5.0)])
-        
-        gs[it] = calc_gamma(
-            run,
-            dist_i2m[:, :, it],
-            dist_i2p[:, :, it],
-            dist_i2[:, :, it],
-            B_i2m[it],
-            B_i2[it],
-            B_i2p[it],
-            i2,
-            omega,
-            -m,
-            n=0,
-            threshold=0.1
-        )
-    return run.time_v, gs
-
-def main2():
-    def calc_gamma_main2(run, dist_m, dist_p, dist, B_m, B, B_p,
-                      i2, omega, m, n=0, threshold=1e-2):
-        vperp = calc_vperp(run, B)
-        wb, wd = calc_bounce_and_drift_freqs(run, B, i2) # (Nm, Nv), (Nm, Nv)
-        resonance_condition = omega - m * wd - n * wb # (Nm, Nv)
-        dWdL = calc_dWdL(run, B, i2, omega, m)
-        gamma1, gamma2, gamma = np.full((run.Nm, run.Nv), np.nan), np.full((run.Nm, run.Nv), np.nan), np.full((run.Nm, run.Nv), np.nan)
-        for im in range(run.Nm):
-            for iv in range(1,run.Nv):
-                if np.abs(resonance_condition[im, iv]) < threshold * omega:
-                    dfdW = calc_dfdW(run, dist, im, iv)
-                    dfdL = calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv)
-                    prefactor = (( np.pi * run.mu0 / 3) * np.sqrt(vperp[im]**2 + run.vp[iv]**2)**5 
-                                / (2 * m * wd[im, iv] + wb[im, iv])
-                                / (B**2 * run.Re**2))                  
-                    gamma1[im, iv] = prefactor * dWdL**2 * dfdW
-                    gamma2[im, iv] = prefactor * dWdL    * dfdL
-                    gamma[im, iv] = gamma1[im, iv] + gamma2[im, iv]
+        omega = 2*np.pi * freq[i3,i2,int(run.time_v[it]/(run.ifdiag*run.delt))]
+        m     = mnums[i3,i2,int(run.time_v[it]/(run.ifdiag*run.delt))]
+        if np.isnan(omega) or np.isnan(m):
+            continue
+        if no_plot:
+            gamma1, gamma2, gamma, _ = calc_gamma_velocity_space(run, dist_m[..., it], dist[..., it], dist_p[..., it],
+                                                                 B_m[it], B[it], B_p[it], i2, omega, m, n, threshold)
+        else:
+            if not os.path.exists('gamma_plots'):
+                os.makedirs('gamma_plots')
+            gamma1, gamma2, gamma, _ = draw_gamma_velocity_space(run, dist_m[..., it], dist[..., it], dist_p[..., it],
+                                                                 B_m[it], B[it], B_p[it], i2, omega, m, n, threshold,
+                                                                 title=f't={run.time_v[it]:.1f}s, f={omega/(2*np.pi)*1e3:.2f} mHz, m={m:.2f}',
+                                                                 filename=f'gamma_plots/{it:02d}.png')
         try:
             im, iv = np.unravel_index(np.nanargmax(gamma), gamma.shape)
-            g1 = gamma1[im, iv]
-            g2 = gamma2[im, iv]
-            g = gamma[im, iv]
-            dfdW = calc_dfdW(run, dist, im, iv)
-            dfdL = calc_dfdL(run, dist_m, dist, dist_p, B_m, B, B_p, i2, im, iv)
-            f = dist[im, iv]
+            gammas[it] = gamma[im, iv]
+            gamma1s[it] = gamma1[im, iv]
+            gamma2s[it] = gamma2[im, iv]
+            ims[it] = im
+            ivs[it] = iv
+            res_dist[it] = dist[im, iv, it]
         except:
-            g1, g2, g, dfdW, dfdL, f = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
-        return g1, g2, g, dfdW, dfdL, f
+            pass
+    return run.time_v, gamma1s, gamma2s, gammas, ims, ivs, res_dist
 
-    i2, i3 = 4, 10
-
-    cases = ['case1', 'case2', 'case3']
+def main():
+    i3, i2 = 10, 4
+    
     rundirs = ['case1b256', 'case2b256new', 'case3b256']
+    fig, axes = plt.subplots(4, 1, figsize=(10,15), sharex=True)
 
-    fig, axes = plt.subplots(6, 1, figsize=(10,15), sharex=True)
-    runs = []
-    for case_num in range(3):
-        run = Run(f'../../run/{rundirs[case_num]}/')
-        cwt_file = f'cwt_analysis_{cases[case_num]}_Pc5_Ephi.npz'
+    for i in range(3):
+        cwt_file = f'cwt_analysis_case{i+1}_Pc5_Ephi.npz'
+        data = np.load(cwt_file)
+        powers = data['max_power']
+  
+        run = Run(f'../../run/{rundirs[i]}/')
         run.read('coord')
         trange_v = (0, 71, 1)
         run.set_trange(trange_v, 'v')
-        runs.append(run)
-
-        i1 = 32  # fixed i1 index
-        d1, l1 = i1 // run.N1_local, i1 % run.N1_local
-        d2, l2 = i2 // run.N2_local, i2 % run.N2_local
-        d3, l3 = i3 // run.N3_local, i3 % run.N3_local
-
-        file_path_dist = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-        dist = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, trange_v)
-        dist_i2p = dist[l3, l2+1, l1, :, :, :] # (Nm, Nv, Nt)
-        dist_i2  = dist[l3, l2, l1, :, :, :]   # (Nm, Nv, Nt)
-        dist_i2m = dist[l3, l2-1, l1, :, :, :] # (Nm, Nv, Nt)
-
-        file_path_bg = os.path.join(run.prefix, f'bg-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-        B0, _ = bg_reader(file_path_bg, run.N1_local, run.N2_local, run.N3_local)
-        file_path_field = os.path.join(run.prefix, f'field-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-        _, B = field_reader(file_path_field, run.N1_local, run.N2_local, run.N3_local, run.trange)
-        B_i2p = np.linalg.norm(B0[l3, l2+1, l1, :, None] + B[l3, l2+1, l1, :, :], axis=0) # (Nt,)
-        B_i2  = np.linalg.norm(B0[l3, l2, l1, :, None]   + B[l3, l2, l1, :, :], axis=0)   # (Nt,)
-        B_i2m = np.linalg.norm(B0[l3, l2-1, l1, :, None] + B[l3, l2-1, l1, :, :], axis=0) # (Nt,)
-
-        max_power_freq, max_power, mnumbers = read_cwt_analysis_data(cwt_file)
-
-        gs = np.full(run.Nt_v, np.nan)
-        g1s = np.full(run.Nt_v, np.nan)
-        g2s = np.full(run.Nt_v, np.nan)
-        dfdWs = np.full(run.Nt_v, np.nan)
-        dfdLs = np.full(run.Nt_v, np.nan)
-        fs = np.full(run.Nt_v, np.nan)
-
-        for it in range(run.Nt_v):
-            omega = 2 * np.pi * max_power_freq[i3, i2, int(run.time_v[it] / 5.0)]
-            m = np.abs(mnumbers[i3, i2, int(run.time_v[it] / 5.0)])
-            g, g1, g2, dfdW, dfdL, f = calc_gamma_main2(
-                run,
-                dist_i2m[:, :, it],
-                dist_i2p[:, :, it],
-                dist_i2[:, :, it],
-                B_i2m[it],
-                B_i2[it],
-                B_i2p[it],
-                i2,
-                omega,
-                -m,
-                n=0,
-                threshold=0.1
-            )
-            gs[it] = g
-            g1s[it] = g1
-            g2s[it] = g2
-            dfdWs[it] = dfdW
-            dfdLs[it] = dfdL
-            fs[it] = f
-
-        axes[0].plot(run.time_v, gs, label=cases[case_num])
-        axes[0].set_ylabel('Growth rate [1/s]')
+        run.read_equatorial('moment')
+        time, gamma1s, gamma2s, gammas, ims, ivs, res_dist = calc_gammas(run, cwt_file, i3, i2, n=0, threshold=0.5, no_plot=False)
         colors = ['tab:blue', 'tab:orange', 'tab:green']
-        axes[1].plot(run.time_v, g1s, label=cases[case_num], color=colors[case_num])
-        axes[1].plot(run.time_v, g2s, label=cases[case_num], linestyle='dashed', color=colors[case_num])
-        axes[1].set_ylabel('Gamma1, Gamma2 [1/s]')
-        axes[2].plot(run.time_v, dfdWs, label=cases[case_num])
-        axes[2].set_ylabel('df/dW [1/s]')
-        axes[3].plot(run.time_v, dfdLs, label=cases[case_num])
-        axes[3].set_ylabel('df/dL [1/s]')
-        axes[4].plot(run.time_v, fs, label=cases[case_num])
-        axes[4].set_ylabel('Resonant f [s^3/m^6]')
-        axes[4].set_xlabel('Time [s]')
-
+        axes[0].plot(np.arange(2161)*5.0, np.log10(powers[i3,i2,:]), label=f'Case {i+1}', color=colors[i])
+        axes[1].plot(time, gammas, label=f'Case {i+1}', color=colors[i])
+        axes[1].plot(time, gamma1s, linestyle='dashed', color=colors[i], alpha=0.5)
+        axes[2].plot(time, res_dist, label=f'Case {i+1}', color=colors[i])
+        axes[3].plot(time, run.Ppe[i3,i2,:], label=f'Case {i+1}', color=colors[i])
+    axes[1].set_ylabel('Growth rate [1/s]')
+    axes[2].set_ylabel('Resonant PSD [s$^3$/m$^6$]')
+    axes[3].set_ylabel('Pressure [Pa]')
+    axes[3].set_xlabel('Time [s]')
+    plt.tight_layout()
     plt.show()
 
 if __name__ == '__main__':
-    from draw_psd import draw_on_velocity_space
-
-    i1, i2, i3 = 32, 4, 10
-
-    case_num = 0  # 0: case1, 1: case2, 2: case3
-    cases = ['case1', 'case2', 'case3']
-    rundirs = ['case1b256', 'case2b256new', 'case3b256']
-    
-    cwt_file = f'cwt_analysis_{cases[case_num]}_Pc5_Ephi.npz'
-    run = Run(f'../../run/{rundirs[case_num]}/')
-
-    main(run, cwt_file, i2, i3)
-        
+    main()

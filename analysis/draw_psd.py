@@ -12,9 +12,14 @@ from base import Run
 
 def convert_mu_to_vperp(mu, B):
     """
-    arguments: mu -- magnetic moment [eV/T]
-               B  -- magnetic field [nT]
-    return   : vperp -- perpendicular velocity [m/s]
+    Parameters
+    ----------
+    mu      : magnetic moment [eV/T]
+    B       : magnetic field [nT]
+
+    Returns
+    -------
+    vperp : perpendicular velocity [m/s]
     """
     Qp = 1.602e-19 # proton charge [C]
     Mp = 1.673e-27 # proton mass [kg]
@@ -25,10 +30,21 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
                            cmap='viridis', alpha=1.0, colorbar=True,
                            label='', title='', savefile=None):
     """
-    arguments: run -- Run object
-               Z   -- (Nm, Nv) array to be drawn
-               xaxis -- 'mu' or 'vperp' (default: 'mu')
-               B   -- magnetic field [nT] at the grid point where Z is calculated, required when xaxis='vperp'
+    Parameters
+    ----------
+    run        : Run object
+    Z          : 2D array to be drawn on velocity space, shape=(Nm, Nv)
+    xaxis      : 'mu' or 'vperp' (default: 'mu')
+    B          : magnetic field [nT] (required when xaxis='vperp')
+    fig, ax    : matplotlib figure and axis objects (default: None, create new)
+    log        : whether to use logarithmic scale for color map (default: False)
+    vmin, vmax : min and max values for color map (default: None, use min/max of Z)
+    cmap       : colormap (default: 'viridis')
+    alpha      : alpha value for color map (default: 1.0)
+    colorbar   : whether to draw colorbar (default: True)
+    label      : label for colorbar (default: '')
+    title      : title for the plot (default: '')
+    savefile   : path to save the figure (default: None, show on screen)
     """
     was_fig_none = fig is None or ax is None
     if was_fig_none:

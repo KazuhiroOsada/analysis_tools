@@ -12,13 +12,10 @@ class CwtData:
     """
     Parameters
     ----------
-    filename : .npz file containing 'freq' and 'cwts'
+    filename : .npz file created by compute_cwt.py
     dt       : time step [s] (default: 5.0 s)
     """
     def __init__(self, filename, dt=5.0):
-        """
-        arguments: filename -- path to .npz file containing 'freq' and 'cwts'
-        """
         data = np.load(filename)
         self.freq = data['freq']
         self.cwts = data['cwts']
@@ -178,6 +175,9 @@ def estimate_mnumber_from_peaks(cwt_data, run, i3, i2, t_from=1000, t_to=4000, n
     return time_peaks, mnum_peaks
 
 def main1():
+    """
+    Plot analysis results at specified points interactively to check validity and set parameters
+    """
     run = Run('../../run/case2b256new')
     run.set_trange((0, 2161, 1))
     run.read_equatorial('bg')
@@ -190,6 +190,9 @@ def main1():
         cwt_data.plot_estimation_validity(run, i3, i2, low_cutoff=1e-3, high_cutoff=7e-3, t_from=1500, t_to=3500)
 
 def main2():
+    """
+    Do analysis for every point for each run and save the results
+    """
     import os
     import time
 
@@ -207,36 +210,10 @@ def main2():
         np.savez(f'cwt_analysis_{cwt_file.replace("/", "_")}',
                  max_power_freq = data.max_power_freq,
                  max_power      = data.max_power,
-                 mnumbers       = data.mnumbers)
+                 mnumbers       = data.mnumbers,
+                 time           = data.time)
         t1 = time.time()
         print(f'Done in {t1 - t0:.1f} s') # the processing takes ~ 10 minutes
-
-def main3():
-    cwt_data = CwtData('../../cwt/case1/Pc5_Ephi.npz')
-
-    i3, i2 = 10, 4
-    n = 2
-
-    peakfreq = cwt_data.find_max_power_freq_at(i3, i2)[1]
-
-    i3_neighbors = np.arange(i3-n, i3+n+1) % cwt_data.N3
-    for it in range(cwt_data.Nt):
-        if np.isnan(peakfreq[it]):
-            continue
-        freq_idx = np.where(cwt_data.freq == peakfreq[it])[0][0]
-        phase_neighbors = np.angle(cwt_data.cwts[i3_neighbors, i2, freq_idx, it])
-        phase_neighbors_unwrapped = np.unwrap(phase_neighbors)
-        dphi = 2*np.pi/cwt_data.N3
-        phi = np.arange(-n,n+1)*dphi
-        mnumber, _ = np.polyfit(phi, phase_neighbors_unwrapped, 1)
-        fig, ax = plt.subplots()
-        ax.plot(phi, phase_neighbors_unwrapped, 'o', label='unwrapped')
-        ax.plot(phi, mnumber*phi + phase_neighbors_unwrapped[n], '-', label='fit')
-        ax.plot(phi, phase_neighbors, 'x', label='wrapped')
-        ax.legend()
-        ax.set_title(f't={cwt_data.time[it]:.1f} s, mnumber={mnumber:.2f}')
-        plt.show()
-
 
 if __name__ == '__main__':
     main1()
