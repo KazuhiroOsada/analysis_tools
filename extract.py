@@ -1,4 +1,4 @@
-"""Check README.md for details """
+""" Check README.md for details """
 
 from optparse import OptionParser
 

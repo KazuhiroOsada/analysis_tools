@@ -9,24 +9,41 @@ from base import Run
 
 def calc_Alfven_speed(run, B, Rho):
     """
-    arguments: run -- Run object
-               B   -- magnetic field [T]
-               Rho -- density [/m^3]
-    return: vA -- Alfven speed [m/s]
+    Parameters
+    ----------
+    run : Run object
+    B   : magnetic field [T]
+    Rho : density [/m^3]
+
+    Returns
+    -------
+    vA : Alfven speed [m/s]
     """
     return np.abs(B) / np.sqrt(run.mu0 * Rho * run.Mp)
 
 def calc_field_line_length(run, i2, i3):
     """
-    arguments: run -- Run object
-    return: length -- field line length [m]
+    Parameters
+    ----------
+    run    : Run object
+    i2, i3 : indices in x2, x3
+
+    Returns
+    -------
+    length : field line length [m]
     """
     return np.sum(run.h1[i3, i2, :] * run.dx1) # m
 
 def calc_eigenfreq(run, i2, i3):
     """
-    arguments: run -- Run object
-    return: frequencies -- time series of eigenfrequency [/s]
+    Parameters
+    ----------
+    run    : Run object
+    i2, i3 : indices in x2, x3
+
+    Returns
+    -------
+    frequencies : time series of Alfven eigenfrequency [/s]
     """
     frequencies = np.zeros(run.Nt)
     for it in range(run.Nt):

@@ -11,11 +11,12 @@ GitHub: [https://github.com/KazuhiroOsada/analysis_tools](https://github.com/Kaz
 GEMSIS-RCで出力されたファイルを読み込むためのPythonスクリプト。
 
 - 実行には `numpy`, `matplotlib` をインストールした Python3(3.6以上) が必要
-- concurrent.futures ThreadPoolExecutorによるスレッド並列
+- ファイル読み込みは、concurrent.futures ThreadPoolExecutorによってスレッド並列化
+- `analysis/`以下は波動などの解析スクリプト置き場
 
 ---
 
-## ファイル構成
+## 主なファイル構成
 
 - `base.py` → `Run`（各ランでの設定・結果の格納
 - `chunk_reader.py` → ドメイン単位でデータ読み込み
@@ -64,7 +65,7 @@ python3 snapshot.py -r rundir -o outdir -t 0 2161 200 # 出力ディレクトリ
 
 ### Binary Data Format for Grid
 
-```
+```markdown
 - Number of species : 4-byte integer
 - Array dimensions  : 4-byte integer (5,) => N3, N2, N1, Nm, Nv
 - Gridpoints        : 8-byte real (3, N1, N2, N3)
@@ -82,7 +83,7 @@ for each species:
 
 ### Binary Data Format for PSD
 
-```
+```markdown
 - Number of species : 4-byte integer
 - Array dimensions  : 4-byte integer (5,) => N3, N2, N1, Nm, Nv
 
@@ -100,7 +101,7 @@ for each species:
 
 ### Binary Data Format for 3D Visualization using Mayavi
 
-```
+```markdown
 - Array dimensions : 4-byte integer (3,) => N3+1, N2, N1
 - Gridpoints       : 8-byte real (3, N1, N2, N3+1)
 

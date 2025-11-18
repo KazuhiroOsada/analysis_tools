@@ -73,7 +73,7 @@ class CwtData:
             for i2 in range(self.N2):
                 self.mnumbers[i3, i2, :] = self.estimate_mnumber_at(i3, i2, n=n)
     
-    def plot_estimation_validity(self, run, i3, i2, low_cutoff=1e-3, high_cutoff=22e-3, t_from=1000, t_to=4000):
+    def plot_estimation_validity(self, run, i3, i2, n=2, low_cutoff=1e-3, high_cutoff=22e-3, t_from=1000, t_to=4000):
         """
         Make a summary plot to check the validity of the analysis at (i3, i2), comparing CWT-based and peak-based m number estimation.
 
@@ -85,8 +85,8 @@ class CwtData:
         from wavelet import bandpass_filter, draw_power_spectrum
 
         _, peakfreq = self.find_max_power_freq_at(i3, i2)
-        mnumbers_cwt = self.estimate_mnumber_at(i3, i2, n=2)
-        time_peaks, mnumbers_peaks = estimate_mnumber_from_peaks(self, run, i3, i2, n=2, low_cutoff=low_cutoff, high_cutoff=high_cutoff, t_from=t_from, t_to=t_to)
+        mnumbers_cwt = self.estimate_mnumber_at(i3, i2, n=n)
+        time_peaks, mnumbers_peaks = estimate_mnumber_from_peaks(self, run, i3, i2, n=n, low_cutoff=low_cutoff, high_cutoff=high_cutoff, t_from=t_from, t_to=t_to)
         fig, axes = plt.subplots(3, 1, figsize=(10,8), sharex=True)
 
         axes[0].set_title(f'i3={i3}, i2={i2}')

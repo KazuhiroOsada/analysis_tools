@@ -15,8 +15,10 @@ def read_cwt_analysis_data(filename):
     mnumbers       = data['mnumbers']
     return max_power_freq, max_power, mnumbers
 
-
 def compare_equatorial():
+    """
+    Draw equatorial profiles of cwt analysis results for multiple runs
+    """
     filenames = ['cwt_analysis_case1_Pc5_Ephi.npz',
                  'cwt_analysis_case2_Pc5_Ephi.npz',
                  'cwt_analysis_case3_Pc5_Ephi.npz']
@@ -46,6 +48,9 @@ def compare_equatorial():
         plt.close()
 
 def compare_points():
+    """
+    Compare cwt analysis results at specific points for multiple runs
+    """
     filenames = ['cwt_analysis_case1_Pc5_Ephi.npz',
                  'cwt_analysis_case2_Pc5_Ephi.npz',
                  'cwt_analysis_case3_Pc5_Ephi.npz']
@@ -56,35 +61,39 @@ def compare_points():
         max_power_freq, max_power, mnumbers = read_cwt_analysis_data(filename)
         run = Run(f'../../run/{rundir}/')
         run.set_trange((0, 2161, 1))
+        run.read_equatorial('moment')
         run.max_power_freq = max_power_freq
         run.max_power = max_power
         run.mnumbers = mnumbers
         runs.append(run)
 
-    points = [(4, 0), (4, 10), (4, 20)]
+    points = [(4, 10), (4, 20)]
 
-    from growthrate import main
+    from growthrate import calc_gamma_time_series
     for run, cwt_file in zip(runs, filenames):
         run.gss = []
         for point in points:
             i2, i3 = point
-            time_v, gs = main(run, cwt_file, i2, i3)
-            run.time_g = time_v
+            time, gs = calc_gamma_time_series(run, cwt_file, i2, i3)
+            print(gs)
             run.gss.append(gs)
-
-    lynestyles = ['solid', 'dashed', 'dotted']
-    fig, axes = plt.subplots(4, 1, figsize=(10,12))
+            run.time_g = time
+    
+    linestyles = ['solid', 'dashed', 'dotted']
+    fig, axes = plt.subplots(5, 1, figsize=(10,16), sharex=True)
     colors = ['tab:blue', 'tab:orange', 'tab:green']
     for i, run in enumerate(runs):
         for j, point in enumerate(points):
             axes[0].plot(run.time, run.max_power[point[1], point[0], :],
-                         color=colors[i], label=f'Case {i+1}, i3 = {point[1]}', linestyle=lynestyles[j])
+                         color=colors[i], label=f'Case {i+1}, i3 = {point[1]}', linestyle=linestyles[j])
             axes[1].plot(run.time, run.max_power_freq[point[1], point[0], :],
-                         color=colors[i], linestyle=lynestyles[j])
+                         color=colors[i], linestyle=linestyles[j])
             axes[2].plot(run.time, np.abs(run.mnumbers[point[1], point[0], :]),
-                         color=colors[i], linestyle=lynestyles[j])
+                         color=colors[i], linestyle=linestyles[j])
             axes[3].plot(run.time_g, run.gss[j],
-                         color=colors[i], linestyle=lynestyles[j])
+                         color=colors[i], linestyle=linestyles[j])
+            axes[4].plot(run.time, run.Ppe[point[1], point[0], :], color=colors[i], linestyle=linestyles[j])
+
     axes[0].set_ylabel('Power log10([mV/m]^2)')
     axes[1].set_ylabel('Frequency [Hz]')
     axes[2].set_ylabel('m number')
@@ -93,7 +102,7 @@ def compare_points():
     axes[0].legend()
     for ax in axes:
         ax.grid()
-        ax.set_xlim(1000, 3000)
+        ax.set_xlim(500, 3500)
     plt.tight_layout()
     plt.show()
 

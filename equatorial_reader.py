@@ -63,15 +63,20 @@ class EquatorialDataReader:
         # metric and cartesian coordinate at cell center
         metric = np.zeros(shape_global)
         xyzi = np.zeros(shape_global)
+        # cartesian coordinate at cell boundary (with different local shape !)
+        xyzh = np.zeros((self.N3+1, self.N2+1, self.N1_local+1, 3))
 
         def process_chunk(d2, d3):
             file_path = self.get_file_path('coord', d2, d3)
             i2_local = np.arange(self.N2_local) + self.N2_local*d2
             i3_local = np.arange(self.N3_local) + self.N3_local*d3
             idx = (i3_local[:, None], i2_local[None, :], slice(None), slice(None))
+            h2_local = np.arange(self.N2_local+1) + self.N2_local*d2
+            h3_local = np.arange(self.N3_local+1) + self.N3_local*d3
+            hidx = (h3_local[:, None], h2_local[None, :], slice(None), slice(None))
             scalar[:], x1[:], x2[i2_local], x3[i3_local], \
-            metric[idx], xyzi[idx], _ = coord_reader(file_path, self.N1_local, self.N2_local, self.N3_local)
-        
+            metric[idx], xyzi[idx], xyzh[hidx] = coord_reader(file_path, self.N1_local, self.N2_local, self.N3_local)
+
         self.thread_parallel_processing(process_chunk)
 
         # pack data into run object
@@ -80,7 +85,8 @@ class EquatorialDataReader:
         self.run.x1, self.run.x2, self.run.x3 = x1[self.l1], x2, x3
         self.run.h1, self.run.h2, self.run.h3 = metric[..., self.l1, 0], metric[..., self.l1, 1], metric[..., self.l1, 2]
         # unit is Re for cartesian coordinate
-        self.run.Xi, self.run.Yi, self.run.Zi = xyzi[..., self.l1, 0], xyzi[..., self.l1, 1], xyzi[..., self.l1, 2]
+        self.run.Xi, self.run.Yi, self.run.Zi = xyzi[..., self.l1, 0]/self.run.Re, xyzi[..., self.l1, 1]/self.run.Re, xyzi[..., self.l1, 2]/self.run.Re
+        self.run.Xh, self.run.Yh, self.run.Zh = xyzh[..., self.l1, 0]/self.run.Re, xyzh[..., self.l1, 1]/self.run.Re, xyzh[..., self.l1, 2]/self.run.Re
         # half integer grid
         self.run.xh1 = self.run.x1 + 0.5*self.run.dx1
         self.run.xh2 = self.run.x2 + 0.5*self.run.dx2

@@ -21,7 +21,8 @@ def convert_mu_to_vperp(mu, B):
     return np.sqrt(2 * mu * (B*1e-9) * Qp / Mp)
 
 def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
-                           log=False, vmin=None, vmax=None, cmap='viridis',
+                           log=False, vmin=None, vmax=None,
+                           cmap='viridis', alpha=1.0, colorbar=True,
                            label='', title='', savefile=None):
     """
     arguments: run -- Run object
@@ -63,11 +64,12 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
     if log:
         import matplotlib.colors as mcolors
         norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
-        pcm = ax.pcolormesh(X, Y, Z, norm=norm, cmap=cmap)
-        cbar = fig.colorbar(pcm, ax=ax)
-        cbar.set_label('log$_{10}$('+label+')')
+        pcm = ax.pcolormesh(X, Y, Z, norm=norm, cmap=cmap, alpha=alpha)
+        label = 'log$_{10}$('+label+')'
     else:
-        pcm = ax.pcolormesh(X, Y, Z, vmin=vmin, vmax=vmax, cmap=cmap)
+        pcm = ax.pcolormesh(X, Y, Z, vmin=vmin, vmax=vmax, cmap=cmap, alpha=alpha)
+
+    if colorbar:
         cbar = fig.colorbar(pcm, ax=ax)
         cbar.set_label(label)
 

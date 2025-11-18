@@ -26,8 +26,17 @@ def draw_equatorial(run, z, fig=None, ax=None,
     cfs        : font size for colorbar label
     gridline   : if True, draw grid lines
     """
-    # TODO: coordが全体なのか赤道面でのものなのか判定する
-    # TODO: sliceを設定すればいい
+    if run.Xh.ndim == 3: # in case coord is read in 3D
+        Xh = run.Xh[:,:,run.N1//2]
+        Yh = run.Yh[:,:,run.N1//2]
+        Xi = run.Xi[:,:,run.N1//2]
+        Yi = run.Yi[:,:,run.N1//2]
+    elif run.Xh.ndim == 2: # in case coord is read in 2D (equatorial)
+        Xh = run.Xh
+        Yh = run.Yh
+        Xi = run.Xi
+        Yi = run.Yi
+
     was_fig_none = fig is None or ax is None
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
@@ -36,11 +45,9 @@ def draw_equatorial(run, z, fig=None, ax=None,
     if log:
         import matplotlib.colors as mcolors
         norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
-        pcm = ax.pcolormesh(run.Xh[:,:,run.N1//2], run.Yh[:,:,run.N1//2], z,
-                            norm=norm, cmap=cmap)
+        pcm = ax.pcolormesh(Xh, Yh, z, norm=norm, cmap=cmap)
     else:
-        pcm = ax.pcolormesh(run.Xh[:,:,run.N1//2], run.Yh[:,:,run.N1//2], z,
-                            vmin=vmin, vmax=vmax, cmap=cmap)
+        pcm = ax.pcolormesh(Xh, Yh, z, vmin=vmin, vmax=vmax, cmap=cmap)
     if colorbar:
         cbar = fig.colorbar(pcm, ax=ax)
         if clabel is not None:
@@ -48,16 +55,16 @@ def draw_equatorial(run, z, fig=None, ax=None,
     # vector field
     if vec is not None:
         skip2, skip3 = 2, 4 # reduce arrow density
-        ax.quiver(run.Xi[::skip3,::skip2,run.N1//2], run.Yi[::skip3,::skip2,run.N1//2], vec[::skip3,::skip2,0], vec[::skip3,::skip2,1],
+        ax.quiver(Xi[::skip3,::skip2], Yi[::skip3,::skip2], vec[::skip3,::skip2,0], vec[::skip3,::skip2,1],
                   angles='xy', scale_units='xy', scale=np.sqrt(vec[:,:,0]**2+vec[:,:,1]**2).max()*0.45,
                   color='white', alpha=0.7)
 
     if gridline:
         for i2 in range(run.N2+1):
-            ax.plot(run.Xh[:,i2,run.N1//2], run.Yh[:,i2,run.N1//2], color='black',
+            ax.plot(Xh[:,i2], Yh[:,i2], color='black',
                     linewidth=0.8 if i2 == 0 or i2 == run.N2 else 0.4, alpha=0.3)
         for i3 in range(run.N3):
-            ax.plot(run.Xh[i3,:,run.N1//2], run.Yh[i3,:,run.N1//2], color='black', linewidth=0.4, alpha=0.3)
+            ax.plot(Xh[i3,:], Yh[i3,:], color='black', linewidth=0.4, alpha=0.3)
 
     # draw earth
     theta = np.linspace(0,2*np.pi,101)
@@ -68,7 +75,7 @@ def draw_equatorial(run, z, fig=None, ax=None,
 
     # settings
     if width is None:
-        width = np.ceil(run.Xi[0,0,run.N1//2])
+        width = np.ceil(Xi[0,0])
     ax.set_aspect('equal')
     ax.set_xlim(-width,width)
     ax.set_ylim(-width,width)
@@ -101,8 +108,6 @@ def draw_meridial(run, z, i3, fig=None, ax=None,
     colorbar  : if True, draw colorbar
     clabel    : label for colorbar
     """
-    if not run.is_read['coord']:
-        run.read('coord')
     was_fig_none = fig is None or ax is None
     if fig is None or ax is None:
         fig, ax = plt.subplots(figsize=(8, 8))
