@@ -102,17 +102,17 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
 
 if __name__ == '__main__':
     from chunk_reader import dist_reader, field_reader
+    from growthrate import calc_bounce_and_drift_freqs
 
     i1, i2, i3 = 32, 4, 0
 
-    run = Run('../../run/case1b256')
+    run = Run('../../run/case2b128')
     run.read('bg')
-    trange_v = (0, 101, 5)
+    run.read('coord')
+    trange_v = (24, 25, 1)
     run.set_trange(trange_v, 'v')
 
-    d1, l1 = i1 // run.N1_local, i1 % run.N1_local
-    d2, l2 = i2 // run.N2_local, i2 % run.N2_local
-    d3, l3 = i3 // run.N3_local, i3 % run.N3_local
+    d1, d2, d3, l1, l2, l3 = run.resolve_global_idx(i1, i2, i3)
 
     file_path_dist = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
     dist = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, trange_v)
@@ -125,7 +125,16 @@ if __name__ == '__main__':
     for it in range(run.Nt_v):
         Babs[it] = np.linalg.norm(B[:, it] + run.B0[i3, i2, i1, :]) # [nT]
 
-    for it in range(1, run.Nt_v):
-        draw_on_velocity_space(run, dist[:, :, it], xaxis='vperp', B=Babs[it],
-                               fig=None, ax=None, log=False,
-                               cmap='viridis', label='f [s^3/m^6]', title=f'Time = {run.time_v[it]:.1f} s')
+    fig, axes = plt.subplots(1, 2, figsize=(16,8))
+
+    wb, wd = calc_bounce_and_drift_freqs(run, Babs[it]/run.unitB, i2)
+    vperp = convert_mu_to_vperp(run.mu, Babs[it])*run.unitV # [km/s]
+    x, y = np.meshgrid(vperp, run.vp*1e-3, indexing='ij')
+    draw_on_velocity_space(run, dist[:, :, it], xaxis='vperp', B=Babs[it],
+                            fig=fig, ax=axes[0], log=False,
+                            cmap='viridis', label='f [s^3/m^6]', title=f'{run.time_v[it]:.1f} s')
+    ctr = axes[0].contour(x, y, wd*1e3/(2*np.pi), colors='gray', linestyles='dashed')
+    axes[0].clabel(ctr, fmt='%.2f', colors='gray', fontsize=8)  
+
+    print(vperp[-2], run.vp[16]*1e-3, 1/2 * run.Mp * ((vperp[-2]*1e3)**2 + (run.vp[16])**2) / run.Qp/ 1e3)
+    plt.show()

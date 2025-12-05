@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('..')
 
@@ -52,8 +53,8 @@ def compute_cwt_equatorial(run, series, low_cutoff, high_cutoff):
             cwts[i3, i2, :, :] = cwt[i_start:i_end+1, :]
     return freq[i_start:i_end+1], cwts
 
-def main(rundir, trange, low_cutoff, high_cutoff, cwt_prefix):
-    import time # this script will take ~5 min to run
+def compute_all_components(rundir, trange, low_cutoff, high_cutoff, cwt_dir):
+    import time # data read takes ~50 s, wavelet transform takes ~90 s at spacest
 
     t0 = time.time()
 
@@ -66,6 +67,7 @@ def main(rundir, trange, low_cutoff, high_cutoff, cwt_prefix):
     t1 = time.time()
     print(f'reading data: {t1-t0:.2f} sec')
 
+    cwt_prefix = os.path.join(cwt_dir, run.prefix.name)
     # Ephi
     freq, cwts = compute_cwt_equatorial(run, run.E[...,2,:], low_cutoff, high_cutoff)
     np.savez(f'{cwt_prefix}_Ephi.npz', freq=freq, cwts=cwts)
@@ -81,9 +83,12 @@ def main(rundir, trange, low_cutoff, high_cutoff, cwt_prefix):
 
 
 if __name__ == '__main__':
-    rundir = '../../run/case1b256'
-    trange = (0, 2161, 1)
-    low_cutoff = 1.5e-3
+    rundirs = ['../../run/case1b128',
+               '../../run/case2b128',
+               '../../run/case3b128']
+    trange = (0, 1441, 1)
+    low_cutoff = 1e-3
     high_cutoff = 7e-3
-    cwt_prefix = 'cwt/case1/Pc5'
-    main(rundir, trange, low_cutoff, high_cutoff, cwt_prefix)
+    for rundir in rundirs:
+        cwt_dir = 'cwt'
+        compute_all_components(rundir, trange, low_cutoff, high_cutoff, cwt_dir)

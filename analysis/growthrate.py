@@ -183,6 +183,7 @@ def calc_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
     Note
     ----
     The calculation is not allowed at the boundaries of i2 and at the minimum vpara
+    Setting of threshold do not need to so strict, because when the resonance condition is not well satisfied, calculated gamma will be small
     """
     vperp = calc_vperp(run, B)
     wb, wd = calc_bounce_and_drift_freqs(run, B, i2) # (Nm, Nv), (Nm, Nv)
@@ -237,7 +238,7 @@ def draw_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
     draw_on_velocity_space(run, rsc/omega, xaxis='vperp', B=B*run.unitB,
                            fig=fig, ax=axes[3], title='Resonance condition', cmap='coolwarm', vmin=-1.0, vmax=1.0)
     draw_on_velocity_space(run, (np.abs(rsc) < threshold * omega).astype(float),
-                           xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[3], cmap='binary', vmin=0, vmax=1, alpha=0.2, colorbar=False, title='$|\omega - m\omega_d|/\omega$')
+                           xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[3], cmap='binary', vmin=0, vmax=1, alpha=0.1, colorbar=False, title='$|\omega - m\omega_d|/\omega$')
     # add drift frequency contours
     for ax in axes:
         _, wd = calc_bounce_and_drift_freqs(run, B, i2)
@@ -254,18 +255,18 @@ def draw_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
 
     return gamma1, gamma2, gamma, rsc
 
-def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True):
+def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, plot=True):
     """
     Calculate time series of growth rate
 
     Parameters
     ----------
     run                 : Run object with coord data and trange_v set
-    cwt_analysis_file   : .npz file created by cwt_analysis.py
+    cwt_analysis_file   : path to .npz file created by cwt_analysis.py
     i3, i2              : indices in x3 and x2 directions
     n                   : harmonic number (default: 0 (fundamental))
     threshold           : when {(omega - m*wd - n*wb) / omega < threshold} is satisfied resonance is considered (default: 0.5)
-    no_plot             : if False, make summary plots to visualize the calculation (default: True)
+    plot                : if True, make summary plots to visualize the calculation (default: False)
 
     Returns
     -------
@@ -273,7 +274,8 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True
     gamma1s  : growth rate component from df/dW [1/s], shape=(Nt_v,)
     gamma2s  : growth rate component from df/dL [1/s], shape=(Nt_v,)
     gammas   : total growth rate [1/s], shape=(Nt_v,)
-    ims, ivs : indices where gammas are maximized, shape=(Nt_v,)
+    vperps   : resonant perpendicular velocity [m/s], shape=(Nt_v,)
+    vparas   : resonant parallel velocity [m/s], shape=(Nt_v,)
     res_dist : resonant PSD [s^3/m^6], shape=(Nt_v,)
     """
     i1 = run.N1//2 # equatorial plane
@@ -283,6 +285,7 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True
 
     file_path_dist = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
     d = dist_reader(file_path_dist, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, run.trange_v)
+    print(f'l2: {l2}')
     dist_p = d[l3, l2+1, l1, :, :, :] # (Nm, Nv, Nt)
     dist   = d[l3, l2,   l1, :, :, :] # (Nm, Nv, Nt)
     dist_m = d[l3, l2-1, l1, :, :, :] # (Nm, Nv, Nt)
@@ -302,15 +305,15 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True
     gamma1s  = np.full(run.Nt_v, np.nan)
     gamma2s  = np.full(run.Nt_v, np.nan)
     gammas   = np.full(run.Nt_v, np.nan)
-    ims      = np.zeros(run.Nt_v, dtype=int)
-    ivs      = np.zeros(run.Nt_v, dtype=int)
+    vperps   = np.full(run.Nt_v, np.nan)
+    vparas   = np.full(run.Nt_v, np.nan)
     res_dist = np.full(run.Nt_v, np.nan)
     for it in range(run.Nt_v):
         omega = 2*np.pi * freq[i3,i2,int(run.time_v[it]/(run.ifdiag*run.delt))]
         m     = mnums[i3,i2,int(run.time_v[it]/(run.ifdiag*run.delt))]
         if np.isnan(omega) or np.isnan(m):
             continue
-        if no_plot:
+        if not plot:
             gamma1, gamma2, gamma, _ = calc_gamma_velocity_space(run, dist_m[..., it], dist[..., it], dist_p[..., it],
                                                                  B_m[it], B[it], B_p[it], i2, omega, m, n, threshold)
         else:
@@ -319,48 +322,81 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, no_plot=True
             gamma1, gamma2, gamma, _ = draw_gamma_velocity_space(run, dist_m[..., it], dist[..., it], dist_p[..., it],
                                                                  B_m[it], B[it], B_p[it], i2, omega, m, n, threshold,
                                                                  title=f't={run.time_v[it]:.1f}s, f={omega/(2*np.pi)*1e3:.2f} mHz, m={m:.2f}',
-                                                                 filename=f'gamma_plots/{it:02d}.png')
+                                                                 filename=f'gamma_plots/{run.prefix.name}_{it:02d}.png')
         try:
             im, iv = np.unravel_index(np.nanargmax(gamma), gamma.shape)
             gammas[it] = gamma[im, iv]
             gamma1s[it] = gamma1[im, iv]
             gamma2s[it] = gamma2[im, iv]
-            ims[it] = im
-            ivs[it] = iv
+            vperps[it] = calc_vperp(run, B[it])[im] * run.unitV
+            vparas[it] = run.vp[iv] * run.unitV
             res_dist[it] = dist[im, iv, it]
         except:
             pass
-    return run.time_v, gamma1s, gamma2s, gammas, ims, ivs, res_dist
+    return run.time_v, gamma1s, gamma2s, gammas, vperps, vparas, res_dist
 
 def main():
-    i3, i2 = 10, 4
-    
-    rundirs = ['case1b256', 'case2b256new', 'case3b256']
-    fig, axes = plt.subplots(4, 1, figsize=(10,15), sharex=True)
+    i3, i2 = 5, 4
+
+    rundirs = ['case1b128', 'case2b128', 'case3b128']
+    fig, axes = plt.subplots(5, 1, figsize=(10,15), sharex=True)
 
     for i in range(3):
-        cwt_file = f'cwt_analysis_case{i+1}_Pc5_Ephi.npz'
+        cwt_file = f'cwt/analysis_{rundirs[i]}_Ephi.npz'
         data = np.load(cwt_file)
         powers = data['max_power']
   
-        run = Run(f'../../run/{rundirs[i]}/')
+        run = Run(f'../../run/{rundirs[i]}')
         run.read('coord')
-        trange_v = (0, 71, 1)
+        trange_v = (0, 91, 1)
         run.set_trange(trange_v, 'v')
         run.read_equatorial('moment')
-        time, gamma1s, gamma2s, gammas, ims, ivs, res_dist = calc_gammas(run, cwt_file, i3, i2, n=0, threshold=0.5, no_plot=False)
+        time, gamma1s, gamma2s, gammas, vperps, vparas, res_dist = calc_gammas(run, cwt_file, i3, i2, n=0, threshold=0.5, plot=True)
         colors = ['tab:blue', 'tab:orange', 'tab:green']
         axes[0].plot(np.arange(2161)*5.0, np.log10(powers[i3,i2,:]), label=f'Case {i+1}', color=colors[i])
-        axes[1].plot(time, gammas, label=f'Case {i+1}', color=colors[i])
-        axes[1].plot(time, gamma1s, linestyle='dashed', color=colors[i], alpha=0.5)
-        axes[2].plot(time, res_dist, label=f'Case {i+1}', color=colors[i])
-        axes[3].plot(time, run.Ppe[i3,i2,:], label=f'Case {i+1}', color=colors[i])
+        axes[1].plot(time, gammas, color=colors[i])
+        axes[1].plot(time, gamma1s, linestyle='dashed', color=colors[i])
+        axes[1].plot(time, gamma2s, linestyle='dotted', color=colors[i])
+        axes[2].plot(time, vperps, linestyle='solid', color=colors[i])
+        axes[2].plot(time, vparas, linestyle='dashed', color=colors[i])
+        axes[3].plot(time, res_dist, label=f'Case {i+1}', color=colors[i])
+        axes[4].plot(time, run.Ppe[i3,i2,:], label=f'Case {i+1}', color=colors[i])
+    axes[0].set_ylabel('log$_{10}$(Power [(mV/m)$^2$])')
+    axes[0].legend()
     axes[1].set_ylabel('Growth rate [1/s]')
-    axes[2].set_ylabel('Resonant PSD [s$^3$/m$^6$]')
-    axes[3].set_ylabel('Pressure [Pa]')
-    axes[3].set_xlabel('Time [s]')
+    labels_gamma = {'solid': '$\gamma$', 'dashed': '$\gamma_1$', 'dotted': '$\gamma_2$'}
+    labels_velocity = {'solid': 'v$_\perp$', 'dashed': 'v$_\parallel$'}
+    for ls in ['solid', 'dashed', 'dotted']:
+        axes[1].plot([], [], linestyle=ls, color='black', label=labels_gamma[ls])
+    axes[1].legend()
+    for ls in ['solid', 'dashed']:
+        axes[2].plot([], [], linestyle=ls, color='black', label=labels_velocity[ls])
+    axes[2].legend()
+    axes[3].set_ylabel('Resonant PSD [s$^3$/m$^6$]')
+    axes[4].set_ylabel('Pressure [Pa]')
+    axes[4].set_xlabel('Time [s]')
+    axes[4].set_xlim(600, 4000)
+    for ax in axes:
+        ax.grid()
     plt.tight_layout()
     plt.show()
 
 if __name__ == '__main__':
-    main()
+    i3, i2 = 5, 4
+    run = Run('../../run/case1b128')
+    run.set_trange((0,91,1), 'v')
+    d1, d2, d3, l1, l2, l3 = run.resolve_global_idx(32, i2, i3)
+    dist_file = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
+    dist = dist_reader(dist_file, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, run.trange_v)
+    dist = dist[l3, l2, l1, :, run.Nv//2, :] # (Nm, Nt)
+    for it in range(run.Nt_v):
+        fig, ax = plt.subplots(figsize=(8,6))
+        ax.plot(run.mu, dist[:, it])
+        ax.set_ylim(1e-20, 1e-15)
+        ax.set_xlabel('mu [eV/T]')
+        ax.set_ylabel('PSD [s$^3$/m$^6$]')
+        ax.set_title(f't={run.time_v[it]:.1f}s')
+        plt.savefig(f'psdcase1/{it:02d}.png')
+        plt.close(fig)
+
+    

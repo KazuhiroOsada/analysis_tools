@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 def draw_equatorial(run, z, fig=None, ax=None,
                     vec=None, vmin=None, vmax=None,
                     log=False, title=None, width=None,
+                    xlabel=True, ylabel=True,
                     cmap = 'jet', colorbar=True, clabel=None, cfs=None,
                     gridline=False):
     """
@@ -20,6 +21,8 @@ def draw_equatorial(run, z, fig=None, ax=None,
     log        : if True, use log scale for colormap
     title      : title of the plot
     width      : half width of the plot [Re] (if None, set automatically)
+    xlabel     : if True, draw xlabel
+    ylabel     : if True, draw ylabel
     cmap       : colormap, 'jet' in default
     colorbar   : if True, draw colorbar
     clabel     : label for colorbar
@@ -79,8 +82,10 @@ def draw_equatorial(run, z, fig=None, ax=None,
     ax.set_aspect('equal')
     ax.set_xlim(-width,width)
     ax.set_ylim(-width,width)
-    ax.set_xlabel('X [Re]', fontsize=18)
-    ax.set_ylabel('Y [Re]', fontsize=18)
+    if xlabel:
+        ax.set_xlabel('X [Re]', fontsize=18)
+    if ylabel:
+        ax.set_ylabel('Y [Re]', fontsize=18)
     ax.set_title(title,fontsize=20)
 
     if was_fig_none:

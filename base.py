@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import numpy as np
 
@@ -35,8 +36,8 @@ class Run:
     - velocity        [km/s]
     - pressure        [nPa]
     """
-    def __init__(self, prefix='.'):
-        self.prefix = prefix
+    def __init__(self, prefix):
+        self.prefix = Path(prefix)
         # coefficients to convert units of GEMSIS-RC's outputs (all in SI unit)
         self.unitB = 1.0/1.0e-9 # T to nT
         self.unitE = 1.0/1.0e-3 # V/m to mV/m
@@ -48,15 +49,15 @@ class Run:
         self.read_parameters()
         # when name is refered first, read files and store them
         self.name_list = ['coord', 'bg', 'field', 'current', 'moment', 'dist']
-        self.is_read = {name: False for name in self.name_list}
+        self.is_read = {name: '' for name in self.name_list} # '' : not read, 'all', or 'equatorial'
         # coordinate system
         self.is_cartesian = {'field': False, 'current': False}
         # call DataReader object
         self.reader = DataReader(self)
         self.eqreader = EquatorialDataReader(self)
 
-    def read_parameters(self, filename='parameter.dat'):
-        path_of_file = os.path.join(self.prefix, filename)
+    def read_parameters(self):
+        path_of_file = os.path.join(self.prefix, 'parameter.dat')
         with open(path_of_file, 'rb') as f:
             # domain decompoition
             self.domain = np.fromfile(f, np.int32, 3)[::-1]
@@ -104,7 +105,11 @@ class Run:
             self.time = np.arange(*trange) * self.delt * self.ifdiag
             self.Nt = len(self.time)
             for name in self.is_read:
-                self.is_read[name] = False
+                if name == 'bg' or name == 'coord':
+                    continue
+                elif self.is_read[name]:
+                    print(f'Notice: trange is changed after reading {name} data')
+                    self.is_read[name] = ''
         elif target == 'v':
             # for dist data
             self.trange_v = trange
@@ -114,7 +119,11 @@ class Run:
             v2f = self.ivdiag//self.ifdiag
             self.trange = (trange[0]*v2f, (trange[1]-1)*v2f + 1, trange[2]*v2f)
             for name in self.is_read:
-                self.is_read[name] = False
+                if name == 'bg' or name == 'coord':
+                    continue
+                elif self.is_read[name]:
+                    print(f'Notice: trange is changed after reading {name} data')
+                    self.is_read[name] = ''
         else:
             print('argument target should be f or v')
 
@@ -126,7 +135,7 @@ class Run:
         ----------
         name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
         """
-        if self.is_read[name]:
+        if self.is_read[name] == 'all':
             print(f'{name} is already read')
         elif name == 'coord':
             self.reader.read_coord()
@@ -144,7 +153,9 @@ class Run:
                 self.reader.read_dist(self.trange_v, s)
         else:
             print(f'No reader for {name}')
-        self.is_read[name] = True
+        if self.is_read[name] == 'equatorial':
+            print(f'Notice: {name} data is rewritten by full 3D data')
+        self.is_read[name] = 'all'
 
     def read_equatorial(self, name):
         """
@@ -154,7 +165,7 @@ class Run:
         ----------
         name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
         """
-        if self.is_read[name]:
+        if self.is_read[name] == 'equatorial':
             print(f'{name} is already read')
         elif name == 'coord':
             self.eqreader.read_coord()
@@ -172,7 +183,9 @@ class Run:
                 self.eqreader.read_dist(self.trange_v, s)
         else:
             print(f'No reader for {name}')
-        self.is_read[name] = True
+        if self.is_read[name] == 'all':
+            print(f'Notice: {name} data is rewritten by equatorial data')
+        self.is_read[name] = 'equatorial'
 
     def transform(self, name):
         """
@@ -216,3 +229,21 @@ class Run:
         """
         Btot = self.B + self.B0[..., None]
         self.Babs = np.linalg.norm(Btot, axis=-2)
+
+    def resolve_global_idx(self, i1, i2, i3):
+        """
+        Resolve global indices into domain and local indices
+
+        Parameters
+        ----------
+        i1, i2, i3 : global indices for x1, x2, x3 directions
+
+        Returns
+        -------
+        d1, d2, d3 : domain indices for x1, x2, x3 directions
+        l1, l2, l3 : local indices for x1, x2, x3 directions
+        """
+        d1, l1 = i1 // self.N1_local, i1 % self.N1_local
+        d2, l2 = i2 // self.N2_local, i2 % self.N2_local
+        d3, l3 = i3 // self.N3_local, i3 % self.N3_local
+        return d1, d2, d3, l1, l2, l3

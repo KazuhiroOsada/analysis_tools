@@ -65,3 +65,4 @@ if __name__ == '__main__':
     axes[1].set_ylabel('SYM-H [nT]')
     axes[1].set_xlabel('Time [s]')
     plt.show()
+    
