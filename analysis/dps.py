@@ -51,18 +51,24 @@ def calc_SYM_H(run):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    run = Run('../../run/case1b256')
-    run.set_trange((0, 2161, 20))
-    run.read('coord')
-    run.read('moment')
+    rundirs = ['case1b128', 'case2b128', 'case3b128', 'case2b128n', 'case3b128n']
+    tranges = [(0, 1441, 20), (0, 1441, 20), (0, 1441, 20), (0, 641, 10), (0, 521, 10)]
 
-    total_energy = calc_total_energy(run)
-    sym_h = calc_SYM_H(run)
     fig, axes = plt.subplots(2, 1, figsize=(8, 6))
-    axes[0].plot(run.time, total_energy)
-    axes[0].set_ylabel('Total Energy [J]')
-    axes[1].plot(run.time, sym_h)
-    axes[1].set_ylabel('SYM-H [nT]')
-    axes[1].set_xlabel('Time [s]')
+    for rundir, trange in zip(rundirs, tranges):
+        run = Run(f'../../run/{rundir}')
+        run.set_trange(trange)
+        run.read('coord')
+        run.read('moment')
+
+        total_energy = calc_total_energy(run)
+        sym_h = calc_SYM_H(run)
+        axes[0].plot(run.time, total_energy, label=run.prefix.name)
+        axes[0].set_ylabel('Total Energy [J]')
+        axes[1].plot(run.time, sym_h, label=run.prefix.name)
+        axes[1].set_ylabel('SYM-H [nT]')
+        axes[1].set_xlabel('Time [s]')
+        axes[0].legend()
     plt.show()
+
     

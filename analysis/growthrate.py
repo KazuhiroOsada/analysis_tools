@@ -223,7 +223,7 @@ def draw_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
     from draw_psd import draw_on_velocity_space
 
     gamma1, gamma2, gamma, rsc = calc_gamma_velocity_space(run, dist_m, dist, dist_p, B_m, B, B_p,
-                                                      i2, omega, m, n, threshold)
+                                                           i2, omega, m, n, threshold)
     
     fig, axes = plt.subplots(1, 4, figsize=(18,6))
     fig.suptitle(title + f', $\gamma$ = {np.nanmax(gamma):.5f} /s, threshold = {threshold:.2f}', fontsize=16)
@@ -398,5 +398,4 @@ if __name__ == '__main__':
         ax.set_title(f't={run.time_v[it]:.1f}s')
         plt.savefig(f'psdcase1/{it:02d}.png')
         plt.close(fig)
-
     

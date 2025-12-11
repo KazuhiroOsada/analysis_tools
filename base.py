@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from enum import Enum
 
 import numpy as np
 
@@ -13,6 +14,7 @@ class Run:
     This object reads and contains the information, parameters and data for a specific run,
     and also provides some simple data processing methods
     For details of data reading, see DataReader class in reader.py and EquatorialDataReader class in equatorial_reader.py
+    Also, check chunk_reader.py for domain decomposed data reading functions
 
     Parameters
     ----------
@@ -36,6 +38,11 @@ class Run:
     - velocity        [km/s]
     - pressure        [nPa]
     """
+    class ReadState(Enum):
+        NONE       = 0
+        ALL        = 1
+        EQUATORIAL = 2
+
     def __init__(self, prefix):
         self.prefix = Path(prefix)
         # coefficients to convert units of GEMSIS-RC's outputs (all in SI unit)
@@ -45,11 +52,9 @@ class Run:
         self.unitN = 1.0/1.0e+6 # 1/m^3 to 1/cm^3
         self.unitV = 1.0/1.0e+3 # m/s to km/s
         self.unitP = 1.0/1.0e-9 # Pa to nPa
-        # parameter.dat in default
         self.read_parameters()
-        # when name is refered first, read files and store them
         self.name_list = ['coord', 'bg', 'field', 'current', 'moment', 'dist']
-        self.is_read = {name: '' for name in self.name_list} # '' : not read, 'all', or 'equatorial'
+        self.is_read = {name: Run.ReadState.NONE for name in self.name_list}
         # coordinate system
         self.is_cartesian = {'field': False, 'current': False}
         # call DataReader object
@@ -100,16 +105,13 @@ class Run:
         trange : tuple of (begin, end, interval)
         target : 'f' for field/current/moment data, 'v' for dist data
         """
+        if target not in ['f', 'v']:
+            raise ValueError(f"Invalid target: {target}. Must be 'f' or 'v'.")
+        
         if target == 'f':
             self.trange = trange
             self.time = np.arange(*trange) * self.delt * self.ifdiag
             self.Nt = len(self.time)
-            for name in self.is_read:
-                if name == 'bg' or name == 'coord':
-                    continue
-                elif self.is_read[name]:
-                    print(f'Notice: trange is changed after reading {name} data')
-                    self.is_read[name] = ''
         elif target == 'v':
             # for dist data
             self.trange_v = trange
@@ -118,14 +120,14 @@ class Run:
             # for other data
             v2f = self.ivdiag//self.ifdiag
             self.trange = (trange[0]*v2f, (trange[1]-1)*v2f + 1, trange[2]*v2f)
-            for name in self.is_read:
-                if name == 'bg' or name == 'coord':
-                    continue
-                elif self.is_read[name]:
-                    print(f'Notice: trange is changed after reading {name} data')
-                    self.is_read[name] = ''
-        else:
-            print('argument target should be f or v')
+        
+        # reset is_read status
+        for name in self.is_read:
+            if name == 'bg' or name == 'coord':
+                continue
+            elif self.is_read[name] != Run.ReadState.NONE:
+                print(f'Notice: trange is changed after reading {name} data')
+                self.is_read[name] = Run.ReadState.NONE
 
     def read(self, name):
         """
@@ -135,8 +137,12 @@ class Run:
         ----------
         name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
         """
-        if self.is_read[name] == 'all':
+        if name not in self.name_list:
+            raise ValueError(f'Invalid name: {name}')
+        
+        if self.is_read[name] == Run.ReadState.ALL:
             print(f'{name} is already read')
+            return
         elif name == 'coord':
             self.reader.read_coord()
         elif name == 'bg':
@@ -151,11 +157,10 @@ class Run:
         elif name == 'dist':
             for s in range(self.Ns):
                 self.reader.read_dist(self.trange_v, s)
-        else:
-            print(f'No reader for {name}')
-        if self.is_read[name] == 'equatorial':
-            print(f'Notice: {name} data is rewritten by full 3D data')
-        self.is_read[name] = 'all'
+    
+        if self.is_read[name] == Run.ReadState.EQUATORIAL:
+            print(f'Notice: {name} data is overwritten by full 3D data')
+        self.is_read[name] = Run.ReadState.ALL
 
     def read_equatorial(self, name):
         """
@@ -165,7 +170,10 @@ class Run:
         ----------
         name : 'coord', 'bg', 'field', 'current', 'moment', or 'dist'
         """
-        if self.is_read[name] == 'equatorial':
+        if name not in self.name_list:
+            raise ValueError(f'Invalid name: {name}')
+
+        if self.is_read[name] == Run.ReadState.EQUATORIAL:
             print(f'{name} is already read')
         elif name == 'coord':
             self.eqreader.read_coord()
@@ -181,11 +189,10 @@ class Run:
         elif name == 'dist':
             for s in range(self.Ns):
                 self.eqreader.read_dist(self.trange_v, s)
-        else:
-            print(f'No reader for {name}')
-        if self.is_read[name] == 'all':
-            print(f'Notice: {name} data is rewritten by equatorial data')
-        self.is_read[name] = 'equatorial'
+
+        if self.is_read[name] == Run.ReadState.ALL:
+            print(f'Notice: {name} data is overwritten by equatorial data')
+        self.is_read[name] = Run.ReadState.EQUATORIAL
 
     def transform(self, name):
         """
@@ -195,6 +202,13 @@ class Run:
         ----------
         name : 'field' or 'current', vectors to be transformed
         """
+        if name not in ['field', 'current']:
+            raise ValueError(f"Invalid name: {name}. Must be 'field' or 'current'.")
+
+        if self.is_cartesian[name]:
+            print(f'{name} data is already in cartesian coordinate')
+            return
+        
         transformer = VectorTransformer(self.Xi, self.Yi, self.Zi)
         if name == 'field':
             self.B0 = transformer(self.B0)
@@ -210,8 +224,6 @@ class Run:
                 self.Jp[..., it] = transformer(self.Jp[..., it])
                 self.Jtot[..., it] = transformer(self.Jtot[..., it])
             self.is_cartesian['current'] = True
-        else:
-            print(f'No transformation for {name}')
 
     def calc_electric_field(self):
         """
@@ -232,8 +244,6 @@ class Run:
 
     def resolve_global_idx(self, i1, i2, i3):
         """
-        Resolve global indices into domain and local indices
-
         Parameters
         ----------
         i1, i2, i3 : global indices for x1, x2, x3 directions
