@@ -51,10 +51,13 @@ def calc_SYM_H(run):
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
-    rundirs = ['case1b128', 'case2b128', 'case3b128', 'case2b128n', 'case3b128n']
-    tranges = [(0, 1441, 20), (0, 1441, 20), (0, 1441, 20), (0, 641, 10), (0, 521, 10)]
+    rundirs = ['case1b128', 'case2b128', 'case3b128']
+    tranges = [(0, 1441, 20), (0, 1441, 20), (0, 1441, 20)]
+    labels = ['Case 1', 'Case 2', 'Case 3']
+    colors = ['black', 'red', 'blue']
 
     fig, axes = plt.subplots(2, 1, figsize=(8, 6))
+    i = 0
     for rundir, trange in zip(rundirs, tranges):
         run = Run(f'../../run/{rundir}')
         run.set_trange(trange)
@@ -63,12 +66,17 @@ if __name__ == '__main__':
 
         total_energy = calc_total_energy(run)
         sym_h = calc_SYM_H(run)
-        axes[0].plot(run.time, total_energy, label=run.prefix.name)
-        axes[0].set_ylabel('Total Energy [J]')
-        axes[1].plot(run.time, sym_h, label=run.prefix.name)
-        axes[1].set_ylabel('SYM-H [nT]')
-        axes[1].set_xlabel('Time [s]')
-        axes[0].legend()
-    plt.show()
+        axes[0].plot(run.time/60, total_energy, label=labels[i], color=colors[i])
+        axes[0].set_ylabel('Total Energy [J]', fontsize=18)
+        axes[1].plot(run.time/60, sym_h, label=labels[i], color=colors[i])
+        axes[1].set_ylabel('SYM-H [nT]', fontsize=18)
+        axes[1].set_xlabel('Time [min]', fontsize=18)
+        for ax in axes:
+            ax.legend()
+            ax.grid()
+            ax.axvline(x=25, color='k', linestyle='--')
+            ax.set_xlim(run.time[0]/60, run.time[-1]/60)
+        i += 1
+    plt.savefig('dps.pdf')
 
     

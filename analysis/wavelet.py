@@ -174,6 +174,7 @@ def inverse_wavelet_transform(run, cwt):
 
 def draw_power_spectrum(run, series, fig=None, ax=None,
                         flog=True, fmin=1e-3, fmax=22e-3, vmax=None,
+                        xunit='s',
                         cmap='jet', fontsize=20, unit='unit', label=''):
     """
     Draw power spectrum obtained by the wavelet transform
@@ -201,7 +202,7 @@ def draw_power_spectrum(run, series, fig=None, ax=None,
 
     if vmax is None:
         vmax = np.log10(power[(freq>=fmin) & (freq<=fmax), :]).max()
-    norm = mpl.colors.Normalize(vmin=vmax-9, vmax=vmax)
+    norm = mpl.colors.Normalize(vmin=vmax-5, vmax=vmax)
     cmap = plt.get_cmap(cmap)
 
     dt = run.delt * run.ifdiag
@@ -210,16 +211,25 @@ def draw_power_spectrum(run, series, fig=None, ax=None,
     y[0] = (3*freq[0] - freq[1]) / 2
     y[1:-1] = (freq[:-1] + freq[1:]) / 2
     y[-1] = (3*freq[-1] - freq[-2]) / 2
+    
+    if xunit == 's':
+        ax.set_xlim(run.time[0], run.time[-1])
+        time = run.time
+    elif xunit == 'min':
+        ax.set_xlim(run.time[0]/60, run.time[-1]/60)
+        x = x / 60
+        time = run.time / 60
+    else:
+        raise ValueError('xunit must be "s" or "min"')
 
     ax.pcolormesh(x, y, np.log10(power), norm=norm, cmap=cmap)
-    ax.fill_between(run.time, coi, fc='w', alpha=0.5)
+    ax.fill_between(time, coi, fc='w', alpha=0.5)
 
     position = ax.get_position()
     cbar_ax = fig.add_axes([position.x1+0.02, position.y0, 0.02, position.height])
     cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm, orientation='vertical')
     cbar.set_label(f'log$_{{10}}$(({unit})$^2)$', fontsize=11)
 
-    ax.set_xlim(run.time[0], run.time[-1])
     ax.tick_params(labelbottom=True)
     ax.set_ylim(fmin, fmax)
     ax.set_yscale('log' if flog else None)

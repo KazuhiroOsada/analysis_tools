@@ -27,8 +27,9 @@ def convert_mu_to_vperp(mu, B):
 
 def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
                            log=False, vmin=None, vmax=None,
+                           xlabel=True, ylabel=True,
                            cmap='viridis', alpha=1.0, colorbar=True,
-                           label='', title='', savefile=None):
+                           label='', title=None, savefile=None, return_pcm=False):
     """
     Parameters
     ----------
@@ -59,14 +60,14 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
         x *= 1e-12 # eV/nT to keV/nT
         X, Y = np.meshgrid(x, y, indexing='ij')
         ax.set_xscale('log')
-        ax.set_xlabel('mu [keV/nT]')
+        xlabel_text = 'mu [keV/nT]'
     elif xaxis == 'vperp':
         if B is None:
             print('argument B is required when xaxis="vperp"')
             return
         x = convert_mu_to_vperp(x, B) * 1e-3 # to km/s
         X, Y = np.meshgrid(x, y, indexing='ij')
-        ax.set_xlabel('$v_{\perp}$ [km/s]')
+        xlabel_text = '$v_{\perp}$ [km/s]'
         ax.set_aspect('equal')
     else:
         print('argument xaxis should be "mu" or "vperp"')
@@ -89,8 +90,12 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
         cbar = fig.colorbar(pcm, ax=ax)
         cbar.set_label(label)
 
-    ax.set_ylabel('$v_{||}$ [km/s]')
-    ax.set_title(title)
+    if xlabel:
+        ax.set_xlabel(xlabel_text, fontsize=18)
+    if ylabel:
+        ax.set_ylabel('$v_{||}$ [km/s]', fontsize=18)
+    if title is not None:
+        ax.set_title(title, fontsize=18)
 
     if not savefile is None:
         fig.savefig(savefile)
@@ -98,6 +103,9 @@ def draw_on_velocity_space(run, Z, xaxis='mu', B=None, fig=None, ax=None,
     else:
         if was_fig_none:
             plt.show()
+
+    if return_pcm:
+        return pcm
 
 
 if __name__ == '__main__':

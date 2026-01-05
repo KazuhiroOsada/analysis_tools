@@ -276,6 +276,7 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, plot=True):
     gammas   : total growth rate [1/s], shape=(Nt_v,)
     vperps   : resonant perpendicular velocity [m/s], shape=(Nt_v,)
     vparas   : resonant parallel velocity [m/s], shape=(Nt_v,)
+    ! bug: vperps and vparas are km/s !!
     res_dist : resonant PSD [s^3/m^6], shape=(Nt_v,)
     """
     i1 = run.N1//2 # equatorial plane
@@ -382,20 +383,110 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    i3, i2 = 5, 4
-    run = Run('../../run/case1b128')
-    run.set_trange((0,91,1), 'v')
-    d1, d2, d3, l1, l2, l3 = run.resolve_global_idx(32, i2, i3)
-    dist_file = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
-    dist = dist_reader(dist_file, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, run.trange_v)
-    dist = dist[l3, l2, l1, :, run.Nv//2, :] # (Nm, Nt)
-    for it in range(run.Nt_v):
-        fig, ax = plt.subplots(figsize=(8,6))
-        ax.plot(run.mu, dist[:, it])
-        ax.set_ylim(1e-20, 1e-15)
-        ax.set_xlabel('mu [eV/T]')
-        ax.set_ylabel('PSD [s$^3$/m$^6$]')
-        ax.set_title(f't={run.time_v[it]:.1f}s')
-        plt.savefig(f'psdcase1/{it:02d}.png')
-        plt.close(fig)
+    rundirs = ['case2b128', 'case3b128']
+    cwt_analysis_files = [f'cwt/analysis_{rundirs[i]}_Ephi.npz' for i in range(2)]
+
+    runs = []
+    for i in range(2):
+        i3, i2 = 5, 4
+        run = Run(f'../../run/{rundirs[i]}')
+        run.read_equatorial('coord')
+        run.set_trange((24,37,12), 'v')
+
+        cwt_analysis_file = cwt_analysis_files[i]
+        data = np.load(cwt_analysis_file)
+        it_cwt = np.rint(run.time_v / (run.ifdiag*run.delt)).astype(int)
+        print(it_cwt)
+
+        d1, d2, d3, l1, l2, l3 = run.resolve_global_idx(32, i2, i3)
+        print('l2', l2)
+        dist_file = os.path.join(run.prefix, f'dist1-{d1:02d}-{d2:02d}-{d3:02d}.dat')
+        dist = dist_reader(dist_file, run.N1_local, run.N2_local, run.N3_local, run.Nm, run.Nv, run.trange_v)
+        run.read_equatorial('bg')
+        run.read_equatorial('field')
+        run.calc_magnetic_amplitude()
+        run.dist_0 = np.full((run.Nm, run.Nv, run.Nt_v), np.nan)
+        run.B_0 = np.full((run.Nt_v), np.nan)
+        run.gamma1 = np.full((run.Nm, run.Nv, run.Nt_v), np.nan)
+        run.gamma  = np.full((run.Nm, run.Nv, run.Nt_v), np.nan)
+        run.m      = np.full(run.Nt_v, np.nan)
+        run.omega  = np.full(run.Nt_v, np.nan)
+        for it in range(run.Nt_v):
+            dist_m = dist[l3, l2-1, l1, :, :, it]
+            dist_0   = dist[l3, l2,   l1, :, :, it]
+            dist_p = dist[l3, l2+1, l1, :, :, it]
+            B_m    = run.Babs[i3, i2-1, it] / run.unitB
+            B_0     = run.Babs[i3, i2,   it] / run.unitB
+            B_p    = run.Babs[i3, i2+1, it] / run.unitB
+            omega = 2*np.pi * data['max_power_freq'][i3,i2,it_cwt[it]]
+            m     = data['mnumbers'][i3,i2,it_cwt[it]]
+            gamma1, gamma2, gamma, rsc = calc_gamma_velocity_space(run, dist_m, dist_0, dist_p, B_m, B_0, B_p,
+                                                                   i2, omega, m, n=0, threshold=0.5)
+            run.dist_0[:, :, it] = dist_0
+            run.B_0[it]   = B_0
+            run.gamma1[:, :, it] = gamma1
+            run.gamma[:, :, it]  = gamma
+            run.m[it]      = m
+            run.omega[it]  = omega
+        runs.append(run)
     
+    from draw_psd import draw_on_velocity_space
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    fig, axes = plt.subplots(2, 6, figsize=(18,10))
+    for i in range(2):
+        for it in range(2):
+            run = runs[i]
+            dist = run.dist_0[:, :, it]
+            B = run.B_0[it]
+            omega = run.omega[it]
+            m = run.m[it]
+            gamma1 = run.gamma1[:, :, it]
+            gamma = run.gamma[:, :, it]
+
+            print(run.prefix.name, omega/(2*np.pi), m)
+
+            pcms = [None, None, None]
+            pcms[0] = draw_on_velocity_space(run, dist, xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[it, 3*i], log=True, vmin=1e-19, vmax=1e-16, colorbar=False, return_pcm=True, xlabel=(it==0), ylabel=(i==0), title='PSD [s$^3$/m$^6$]' if it==0 else '')
+            pcms[1] = draw_on_velocity_space(run, gamma, xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[it, 3*i+1], cmap='coolwarm', vmin=-0.003, vmax=0.003, colorbar=False, return_pcm=True, xlabel=(it==0), ylabel=False, title='$\gamma$ [/s]$= \gamma_1 + \gamma_2$' if it==0 else '')
+            pcms[2] = draw_on_velocity_space(run, gamma1, xaxis='vperp', B=B*run.unitB, fig=fig, ax=axes[it, 3*i+2], cmap='coolwarm', vmin=-0.003, vmax=0.003, colorbar=False, return_pcm=True, xlabel=(it==0), ylabel=False, title='$\gamma_1$ [/s]$\propto df/dW$' if it==0 else '')
+        
+            for j in range(3):
+                _, wd = calc_bounce_and_drift_freqs(run, B, i2)
+                vperp = calc_vperp(run, B) * 1e-3 # to km/s
+                x, y = np.meshgrid(vperp, run.vp*1e-3, indexing='ij')
+                ctr = axes[it, 3*i+j].contour(x, y, wd*1e3/(2*np.pi), colors='gray', linestyles='dashed')
+                axes[it, 3*i+j].clabel(ctr, fmt='%.2f', colors='gray', fontsize=8) 
+                ctr = axes[it, 3*i+j].contour(x, y, wd*1e3/(2*np.pi), levels=[omega/m*1e3/(2*np.pi)], colors='black', linestyles='dashed', linewidths=2)
+                axes[it, 3*i+j].clabel(ctr, fmt='%.2f', colors='gray', fontsize=8)
+
+        for j in range(3):
+            pos = axes[1, j+3*i].get_position()  # 最下段の axes
+            cbar_height = 0.018
+            pad = 0.024
+
+            cax = fig.add_axes([
+                pos.x0,
+                pos.y0 - pad - cbar_height,
+                pos.width,
+                cbar_height
+            ])
+
+            fig.colorbar(pcms[j], cax=cax, orientation='horizontal')
+
+        labels = [['(a)', '(b)', '(c)', '(d)', '(e)', '(f)'], ['(g)', '(h)', '(i)', '(j)', '(k)', '(l)']]
+        for i in range(2):
+            for j in range(6):
+                axes[i, j].text(-0.3, 1.05, labels[i][j], transform=axes[i, j].transAxes,
+                                fontsize=15, fontweight='bold', va='top', ha='left',
+                                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+        axes[0,0].text(-0.7, 0.5, 't = 20 min', transform=axes[0,0].transAxes,
+                       fontsize=20, va='center', ha='center', rotation=90)
+        axes[1,0].text(-0.7, 0.5, 't = 30 min', transform=axes[1,0].transAxes,
+                        fontsize=20, va='center', ha='center', rotation=90)
+        axes[0,1].text(0.5, 1.2, 'Case 2', transform=axes[0,1].transAxes,
+                       fontsize=20, va='center', ha='center')
+        axes[0,4].text(0.5, 1.2, 'Case 3', transform=axes[0,4].transAxes,
+                       fontsize=20, va='center', ha='center')
+                
+    plt.savefig('gamma_velocity_space_comparison_case2_case3.pdf')
+    plt.show()

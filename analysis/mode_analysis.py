@@ -47,6 +47,7 @@ def draw_x1_time(run, z, i2, i3, fig=None, ax=None, vmax=None, cmap='coolwarm', 
     s = calc_field_aligned_axis(run, i2, i3)
     dt = run.time[1] - run.time[0]
     t = np.linspace(run.time[0]-dt/2, run.time[-1]+dt/2, run.Nt+1)
+    t = t/60
     T, S = np.meshgrid(t, s)
 
     if vmax is None:
@@ -55,7 +56,7 @@ def draw_x1_time(run, z, i2, i3, fig=None, ax=None, vmax=None, cmap='coolwarm', 
 
     pcm = ax.pcolormesh(T, S, z, vmin=vmin, vmax=vmax, cmap=cmap)
     cbar = fig.colorbar(pcm, ax=ax)
-    cbar.set_label(label)
+    cbar.set_label(label, fontsize=16)
     s_ticks = np.linspace(np.ceil(s.min()), np.floor(s.max()), 5)
     ax.set_yticks(s_ticks)
     Rh = np.sqrt(run.Xh[i3,i2,:]**2 + run.Yh[i3,i2,:]**2)
@@ -71,46 +72,56 @@ def draw_x1_time(run, z, i2, i3, fig=None, ax=None, vmax=None, cmap='coolwarm', 
 
 
 if __name__ == '__main__':
-    i2, i3 = 4, 20
-    trange = (0, 2161, 1)
+    i2, i3 = 4, 5
+    trange = (0, 1441, 1)
 
-    run = Run('../../run/case1b256')
-    run.read('coord')
-    run.set_trange(trange)
-
-    d3, l3 = i3 // run.N3_local, i3 % run.N3_local
-    d2, l2 = i2 // run.N2_local, i2 % run.N2_local
-
-    B0 = np.zeros((run.N3_local, run.N2_local, run.N1, 3))
-    B = np.zeros((run.N3_local, run.N2_local, run.N1, 3, run.Nt))
-    V = np.zeros((run.N3_local, run.N2_local, run.N1, 3, run.Nt))
-    for d1 in range(run.domain[2]):
-        filepath_bg = f'{run.prefix}/bg-{d1:02d}-{d2:02d}-{d3:02d}.dat'
-        B0[..., d1*run.N1_local:(d1+1)*run.N1_local, :], _ = bg_reader(filepath_bg, run.N1_local, run.N2_local, run.N3_local)
-        filepath_field = f'{run.prefix}/field-{d1:02d}-{d2:02d}-{d3:02d}.dat'
-        V[..., d1*run.N1_local:(d1+1)*run.N1_local, :, :], B[..., d1*run.N1_local:(d1+1)*run.N1_local, :, :] = field_reader(filepath_field, run.N1_local, run.N2_local, run.N3_local, trange)
+    rundirs = ['../../run/case1b128',
+               '../../run/case2b128',
+               '../../run/case3b128']
     
-    Btot = B + B0[..., None]
-    E = -np.cross(V, Btot, axis=3)
+    labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
+    case_labels = ['Case 1', 'Case 2', 'Case 3']
 
-    s = calc_field_aligned_axis(run, i2, i3)
+    fig, axes = plt.subplots(9, 1, figsize=(12, 18), sharex=True)  
+    for i, run_dir in enumerate(rundirs):
+        run = Run(run_dir)
+        run.read('coord')
+        run.set_trange(trange)
+        _, d2, d3, _, l2, l3 = run.resolve_global_idx(0, i2, i3)
 
-    low_cutoff = 1.6e-3
-    high_cutoff = 7e-3
-    dt = run.delt * run.ifdiag
+        B0 = np.zeros((run.N3_local, run.N2_local, run.N1, 3))
+        B = np.zeros((run.N3_local, run.N2_local, run.N1, 3, run.Nt))
+        V = np.zeros((run.N3_local, run.N2_local, run.N1, 3, run.Nt))
+        for d1 in range(run.domain[2]):
+            filepath_bg = f'{run.prefix}/bg-{d1:02d}-{d2:02d}-{d3:02d}.dat'
+            B0[..., d1*run.N1_local:(d1+1)*run.N1_local, :], _ = bg_reader(filepath_bg, run.N1_local, run.N2_local, run.N3_local)
+            filepath_field = f'{run.prefix}/field-{d1:02d}-{d2:02d}-{d3:02d}.dat'
+            V[..., d1*run.N1_local:(d1+1)*run.N1_local, :, :], B[..., d1*run.N1_local:(d1+1)*run.N1_local, :, :] = field_reader(filepath_field, run.N1_local, run.N2_local, run.N3_local, trange)
+    
+        Btot = B + B0[..., None]
+        E = -np.cross(V, Btot, axis=3)
 
-    Ephi  = bandpass_filter(run, E[..., 2, :], low_cutoff, high_cutoff) * run.unitE
-    Er    = bandpass_filter(run, E[..., 1, :], low_cutoff, high_cutoff) * run.unitE
-    Br    = bandpass_filter(run, B[..., 1, :], low_cutoff, high_cutoff) * run.unitB
-    Bphi  = bandpass_filter(run, B[..., 2, :], low_cutoff, high_cutoff) * run.unitB
-    Bpara = bandpass_filter(run, B[..., 0, :], low_cutoff, high_cutoff) * run.unitB
+        s = calc_field_aligned_axis(run, i2, i3)
+     
+        low_cutoff = 2.0e-3
+        high_cutoff = 7.0e-3
+        dt = run.delt * run.ifdiag
 
-    fig, ax = plt.subplots(5, 1, figsize=(10, 12), sharex=True)
-    draw_x1_time(run, Ephi[l3, l2, :, :], i2, i3, fig=fig, ax=ax[0], label='Ephi [mV/m]')
-    draw_x1_time(run, Er[l3, l2, :, :], i2, i3, fig=fig, ax=ax[1], label='Er [mV/m]')
-    draw_x1_time(run, Br[l3, l2, :, :], i2, i3, fig=fig, ax=ax[2], label='Br [nT]')
-    draw_x1_time(run, Bphi[l3, l2, :, :], i2, i3, fig=fig, ax=ax[3], label='Bphi [nT]')
-    draw_x1_time(run, Bpara[l3, l2, :, :], i2, i3, fig=fig, ax=ax[4], label='Bpara [nT]')
-    ax[2].set_xlabel('Time [s]')
+        Ephi  = bandpass_filter(run, E[..., 2, :], low_cutoff, high_cutoff) * run.unitE
+        Br    = bandpass_filter(run, -B[..., 1, :], low_cutoff, high_cutoff) * run.unitB
+        Bpara = bandpass_filter(run, -B[..., 0, :], low_cutoff, high_cutoff) * run.unitB
+
+        axes[i*3+1].text(-0.16, 0.5, case_labels[i], color='black', fontsize=18,
+                         transform=axes[i*3+1].transAxes, rotation=90, va='center')
+
+        axes[i*3+0].text(-0.13, 0.9, labels[i*3+0], color='black', fontsize=16, fontweight='bold', transform=axes[i*3+0].transAxes)
+        draw_x1_time(run, Ephi[l3, l2, :, :], i2, i3, fig=fig, ax=axes[i*3+0], vmax=5e-4, label='$E_\phi$ [mV/m]')
+        axes[i*3+1].text(-0.13, 0.9, labels[i*3+1], color='black', fontsize=16, fontweight='bold', transform=axes[i*3+1].transAxes)
+        draw_x1_time(run, Br[l3, l2, :, :], i2, i3, fig=fig, ax=axes[i*3+1], vmax=2e-3, label='$B_r$ [nT]')
+        axes[i*3+2].text(-0.13, 0.9, labels[i*3+2], color='black', fontsize=16, fontweight='bold', transform=axes[i*3+2].transAxes)
+        draw_x1_time(run, Bpara[l3, l2, :, :], i2, i3, fig=fig, ax=axes[i*3+2], vmax=2e-3, label='$B_{||}$ [nT]')
+    axes[0].text(-0.1, 1.1, 'MLAT [°] s [Re]', fontsize=12, transform=axes[0].transAxes)
+    axes[8].set_xlabel('Time [min]', fontsize=16)
+    axes[8].set_xlim(0, 60)
     plt.tight_layout()
-    plt.show()
+    plt.savefig('mode_analysis.pdf')

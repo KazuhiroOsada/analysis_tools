@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 
 
 def draw_equatorial(run, z, fig=None, ax=None,
-                    vec=None, vmin=None, vmax=None,
+                    vec=None, vmin=None, vmax=None, alpha=1.0,
                     log=False, title=None, width=None,
                     xlabel=True, ylabel=True,
                     cmap = 'jet', colorbar=True, clabel=None, cfs=None,
-                    gridline=False):
+                    gridline=False, return_pcm=False):
     """
     Draw contour plot of Z(N3,N2) on the equatorial plane
 
@@ -48,7 +48,7 @@ def draw_equatorial(run, z, fig=None, ax=None,
     if log:
         import matplotlib.colors as mcolors
         norm = mcolors.LogNorm(vmin=vmin, vmax=vmax)
-        pcm = ax.pcolormesh(Xh, Yh, z, norm=norm, cmap=cmap)
+        pcm = ax.pcolormesh(Xh, Yh, z, norm=norm, cmap=cmap, alpha=alpha)
     else:
         pcm = ax.pcolormesh(Xh, Yh, z, vmin=vmin, vmax=vmax, cmap=cmap)
     if colorbar:
@@ -90,6 +90,9 @@ def draw_equatorial(run, z, fig=None, ax=None,
 
     if was_fig_none:
         plt.show()
+
+    if return_pcm:
+        return pcm
 
 def draw_meridial(run, z, i3, fig=None, ax=None,
                 vmin=None, vmax=None,

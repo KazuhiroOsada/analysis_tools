@@ -306,9 +306,8 @@ def cwt_analysis_all(cwt_files, prefix='cwt'):
 
 
 if __name__ == '__main__':
-    #main2()
-
     rundir = '../../run/case1b128'
     cwt_file = 'cwt/case1b128_Ephi.npz'
-    main3(rundir, cwt_file)
+    
+    make_plot_at_each_point(rundir, cwt_file)
 
