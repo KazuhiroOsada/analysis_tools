@@ -45,7 +45,7 @@ def get_parser():
 
 def draw_snapshot(run, it, outdir='figure', quiet=False):
     """
-    Draw 4 equatorial colormaps (density, Pperp w/ vE, Jphi, dB w/ dB)
+    Draw 4 equatorial colormaps (density w/ potential, Pperp w/ vE, Jphi, dB w/ dB)
 
     Parameters
     ----------

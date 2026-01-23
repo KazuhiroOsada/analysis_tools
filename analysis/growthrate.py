@@ -276,7 +276,6 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, plot=True):
     gammas   : total growth rate [1/s], shape=(Nt_v,)
     vperps   : resonant perpendicular velocity [m/s], shape=(Nt_v,)
     vparas   : resonant parallel velocity [m/s], shape=(Nt_v,)
-    ! bug: vperps and vparas are km/s !!
     res_dist : resonant PSD [s^3/m^6], shape=(Nt_v,)
     """
     i1 = run.N1//2 # equatorial plane
@@ -329,8 +328,8 @@ def calc_gammas(run, cwt_analysis_file, i3, i2, n=0, threshold=0.5, plot=True):
             gammas[it] = gamma[im, iv]
             gamma1s[it] = gamma1[im, iv]
             gamma2s[it] = gamma2[im, iv]
-            vperps[it] = calc_vperp(run, B[it])[im] * run.unitV
-            vparas[it] = run.vp[iv] * run.unitV
+            vperps[it] = calc_vperp(run, B[it])[im]
+            vparas[it] = run.vp[iv]
             res_dist[it] = dist[im, iv, it]
         except:
             pass

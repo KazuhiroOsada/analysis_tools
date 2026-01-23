@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-# TODO?: add VectorTransformer class to convert vector in dipole coordinate to spherical coordinate
-
 class ModifiedDipole:
     """
     Modified Dipole Coordinate (Kageyama et al. 2006) is defined from variable transformation from the standard dipole coordinate.
@@ -123,12 +121,12 @@ class VectorTransformer:
         self.R = np.zeros(x.shape + (3,3), 'd')
         self.R[...,0,0] = 3*sint*cost*cosp / gam
         self.R[...,0,1] = (-1+3*cost**2)*cosp / gam
-        self.R[...,0,2] =-sinp
+        self.R[...,0,2] = -sinp
         self.R[...,1,0] = 3*sint*cost*sinp / gam
         self.R[...,1,1] = (-1+3*cost**2)*sinp / gam
         self.R[...,1,2] = cosp
         self.R[...,2,0] = (-1+3*cost**2) / gam
-        self.R[...,2,1] =-3*sint*cost / gam
+        self.R[...,2,1] = -3*sint*cost / gam
         self.R[...,2,2] = 0
 
     def __call__(self, vec):
@@ -149,26 +147,62 @@ class VectorTransformer:
             self.R[...,2,1]*vec[...,1] + \
             self.R[...,2,2]*vec[...,2]
         return xyz
+    
+class VectorTransformer2:
+    """
+    Convert vector in dipole coordinate to spherical coordinate
+    """
+    def __init__(self, x, y, z):
+        """
+        Parameters
+        ----------
+        x, y, z: coordinate in cartesian coordinate
+        """
+        r    = np.sqrt(x**2 + y**2 + z**2)
+        cost = z / r
+        sint = np.sqrt(1 - cost**2)
+        gam  = np.sqrt(1 + 3*cost**2)
+        # transform matrix
+        self.R = np.zeros(x.shape + (3,3), 'd')
+        self.R[...,0,0] = 2*cost / gam
+        self.R[...,0,1] = -sint / gam
+        self.R[...,0,2] = 0
+        self.R[...,1,0] = sint / gam
+        self.R[...,1,1] = 2*cost / gam
+        self.R[...,1,2] = 0
+        self.R[...,2,0] = 0
+        self.R[...,2,1] = 0
+        self.R[...,2,2] = 1
+
+    def __call__(self, vec):
+        """
+        vec: vector in dipole coordinate
+        """
+        rtp = np.zeros_like(vec)
+        rtp[...,0] = \
+            self.R[...,0,0]*vec[...,0] + \
+            self.R[...,0,1]*vec[...,1] + \
+            self.R[...,0,2]*vec[...,2]
+        rtp[...,1] = \
+            self.R[...,1,0]*vec[...,0] + \
+            self.R[...,1,1]*vec[...,1] + \
+            self.R[...,1,2]*vec[...,2]
+        rtp[...,2] = \
+            self.R[...,2,0]*vec[...,0] + \
+            self.R[...,2,1]*vec[...,1] + \
+            self.R[...,2,2]*vec[...,2]
+        return rtp
 
 
 if __name__ == "__main__":
     # simulation setting of Amano et al. 2010
     Lmin = 3.6
-    Lmax = 7.6
+    Lmax = 6.6
     Rmin = 3.0
     theta_min = np.pi/3
     N1 = 64
-    N2 = 42
+    N2 = 32
     stretch = 100
 
     coord = ModifiedDipole(Lmin, Lmax, Rmin, theta_min, N1, N2, stretch)
-            
-    fig, ax = plt.subplots()
-    for i1 in range(coord.N1):
-        ax.plot(coord.x[i1], coord.z[i1], 'k-')
-    for i2 in range(coord.N2):
-        ax.plot(coord.x[:,i2], coord.z[:,i2], 'k-')
-    ax.set_aspect('equal')
-    ax.set_xlabel('R [Re]', fontsize=18)
-    ax.set_ylabel('Z [Re]', fontsize=18)
-    plt.savefig('grid_structure.pdf')
+    coord.draw_RZ_plane()

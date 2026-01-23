@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 def draw_equatorial(run, z, fig=None, ax=None,
                     vec=None, vmin=None, vmax=None, alpha=1.0,
                     log=False, title=None, width=None,
-                    xlabel=True, ylabel=True,
+                    xlabel=True, ylabel=True, ticks_size=14, ticks_step=2.0,
                     cmap = 'jet', colorbar=True, clabel=None, cfs=None,
-                    gridline=False, return_pcm=False):
+                    gridline=False, gridline_alpha=0.3, return_pcm=False):
     """
     Draw contour plot of Z(N3,N2) on the equatorial plane
 
@@ -65,9 +65,9 @@ def draw_equatorial(run, z, fig=None, ax=None,
     if gridline:
         for i2 in range(run.N2+1):
             ax.plot(Xh[:,i2], Yh[:,i2], color='black',
-                    linewidth=0.8 if i2 == 0 or i2 == run.N2 else 0.4, alpha=0.3)
+                    linewidth=0.8 if i2 == 0 or i2 == run.N2 else 0.4, alpha=gridline_alpha)
         for i3 in range(run.N3):
-            ax.plot(Xh[i3,:], Yh[i3,:], color='black', linewidth=0.4, alpha=0.3)
+            ax.plot(Xh[i3,:], Yh[i3,:], color='black', linewidth=0.4, alpha=gridline_alpha)
 
     # draw earth
     theta = np.linspace(0,2*np.pi,101)
@@ -87,6 +87,11 @@ def draw_equatorial(run, z, fig=None, ax=None,
     if ylabel:
         ax.set_ylabel('Y [Re]', fontsize=18)
     ax.set_title(title,fontsize=20)
+    ax.tick_params(axis='both', which='major', labelsize=ticks_size)
+    eps = 1e-3
+    ticks = np.arange(-width, width + eps, ticks_step)
+    ax.set_xticks(ticks)
+    ax.set_yticks(ticks)
 
     if was_fig_none:
         plt.show()

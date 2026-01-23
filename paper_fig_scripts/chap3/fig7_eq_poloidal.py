@@ -29,11 +29,6 @@ for irun, rundir in enumerate(rundirs):
     run.max_power = data['max_power'][..., time_slice]
     run.mnumbers = data['mnumbers'][..., time_slice]
 
-    mask = run.max_power_freq < 2e-3
-    run.max_power_freq[mask] = np.nan
-    run.max_power[mask] = np.nan
-    run.mnumbers[mask] = np.nan
-
     runs.append(run)
 
 labels = [['a', 'b', 'c', 'd'],

@@ -172,9 +172,49 @@ def inverse_wavelet_transform(run, cwt):
 
     return series_rec
 
+def _apply_yunit(ax, yunit, y, coi, fmin, fmax, fontsize):
+    if yunit == 'Hz':
+        ax.set_ylabel('Frequency [Hz]', fontsize=fontsize)
+        scale = 1.0
+    elif yunit == 'mHz':
+        ax.set_ylabel('Frequency\n[mHz]', fontsize=fontsize)
+        scale = 1e3
+    else:
+        raise ValueError('yunit must be "Hz" or "mHz"')
+
+    # Scale frequency-related quantities
+    y2    = y    * scale
+    coi2  = coi  * scale
+    fmin2 = fmin * scale
+    fmax2 = fmax * scale
+    return y2, coi2, fmin2, fmax2
+
+def _format_yaxis(ax, flog, yunit):
+    import matplotlib.ticker as mticker
+    if flog:
+        if yunit == 'Hz':
+            ax.yaxis.set_major_locator(mticker.LogLocator(base=10.0))
+            ax.yaxis.set_major_formatter(mticker.LogFormatterMathtext(base=10.0))
+        elif yunit == 'mHz':
+            ax.yaxis.set_major_locator(mticker.LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+            ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, pos: f'{v:g}'))
+            ax.yaxis.set_minor_formatter(mticker.NullFormatter())
+    else:
+        if yunit == 'Hz':
+            sf = mticker.ScalarFormatter(useMathText=True)
+            sf.set_scientific(True)
+            sf.set_powerlimits((0, 0))
+            ax.yaxis.set_major_formatter(sf)
+        elif yunit == 'mHz':
+            sf = mticker.ScalarFormatter(useMathText=True)
+            sf.set_scientific(False)
+            sf.set_useOffset(False)
+            ax.yaxis.set_major_formatter(sf)
+            ax.yaxis.get_offset_text().set_visible(False)                     
+
 def draw_power_spectrum(run, series, fig=None, ax=None,
                         flog=True, fmin=1e-3, fmax=22e-3, vmax=None,
-                        xunit='s',
+                        xunit='s', yunit='Hz', labelsize=20,
                         cmap='jet', fontsize=20, unit='unit', label=''):
     """
     Draw power spectrum obtained by the wavelet transform
@@ -221,54 +261,65 @@ def draw_power_spectrum(run, series, fig=None, ax=None,
         time = run.time / 60
     else:
         raise ValueError('xunit must be "s" or "min"')
+    
+    y, coi, fmin2, fmax2 = _apply_yunit(ax, yunit, freq, coi, fmin, fmax, fontsize)
 
-    ax.pcolormesh(x, y, np.log10(power), norm=norm, cmap=cmap)
+    ax.pcolormesh(x, y, np.log10(power), norm=norm, cmap=cmap, shading='auto')
     ax.fill_between(time, coi, fc='w', alpha=0.5)
+
+    ax.set_ylim(fmin2, fmax2)
+    ax.set_yscale('log' if flog else 'linear')
+
+    _format_yaxis(ax, flog, yunit)
 
     position = ax.get_position()
     cbar_ax = fig.add_axes([position.x1+0.02, position.y0, 0.02, position.height])
+    cbar_ax.tick_params(labelsize=14)
     cbar = mpl.colorbar.ColorbarBase(cbar_ax, cmap=cmap, norm=norm, orientation='vertical')
-    cbar.set_label(f'log$_{{10}}$(({unit})$^2)$', fontsize=11)
+    cbar.set_label(f'log$_{{10}}$(({unit})$^2)$', fontsize=16)
+    # in order to get cbar and ax, store them as attributes of ax
+    ax._cbar = cbar
+    ax._cbar_ax = cbar_ax
 
     ax.tick_params(labelbottom=True)
-    ax.set_ylim(fmin, fmax)
-    ax.set_yscale('log' if flog else None)
-    ax.set_ylabel('Frequency [Hz]',fontsize=fontsize)
 
-    text = ax.text(0.01, 0.05, label, color='white', fontsize=fontsize, fontweight='bold', transform=ax.transAxes)
+    text = ax.text(0.01, 0.05, label, color='white', fontsize=labelsize, fontweight='bold', transform=ax.transAxes)
     text.set_path_effects([patheffects.Stroke(linewidth=2, foreground='black'), patheffects.Normal()])    
 
 
 if __name__ == "__main__":
-    i2, i3 = 4, 20
+    i2, i3 = 4, 105
+    low_cutoff = 10e-3
+    high_cutoff = 50e-3
 
-    run = Run('../../run/case1b256')
-    run.set_trange((0, 2161, 1))
+    run = Run('../../run/case2b128o')
+    run.set_trange((0, 1441, 1))
     run.read_equatorial('bg')
     run.read_equatorial('field')
+    run.read_equatorial('moment')
 
     B = run.B[i3, i2, :, :] + run.B0[i3, i2, :, None]
     V = run.V[i3, i2, ...]
     Ephi = -(V[0, :] * B[1, :] - V[1, :] * B[0, :])
     Ephi *= run.unitE / run.unitV / run.unitB
-    series = bandpass_filter(run, Ephi, 1.6e-3, 7e-3)
+    series = bandpass_filter(run, Ephi, low_cutoff, high_cutoff)
     freq, cwt = wavelet_transform(run, series)
     series_rec = inverse_wavelet_transform(run, cwt)
 
-    fig, axes = plt.subplots(4, 1, figsize=(16, 12), sharex=True)
+    fig, axes = plt.subplots(5, 1, figsize=(16, 12), sharex=True)
     axes[0].plot(run.time, series, label='original')
     axes[0].plot(run.time, series_rec, label='reconstructed', linestyle='dashed')
     axes[0].set_xlabel('Time [s]')
     axes[0].set_ylabel('E_phi [mV/m]')
     axes[0].legend()
     axes[0].set_xlim(0, 4000)
-    draw_power_spectrum(run, series, fig=fig, ax=axes[1],
-                        flog=True, fmin=1e-3, fmax=22e-3, vmax=None,
+    draw_power_spectrum(run, Ephi, fig=fig, ax=axes[1],
+                        flog=True, fmin=1e-3, fmax=50e-3, vmax=None,
                         fontsize=15, unit='E_phi [mV/m]', label='E_phi at (i2,i3)=('+str(i2)+','+str(i3)+')')
     axes[1].set_xlim(0, 4000)
 
     Bpara = -B[0, :]
-    series = bandpass_filter(run, Bpara, 1.6e-3, 7e-3)
+    series = bandpass_filter(run, Bpara, low_cutoff, high_cutoff)
     freq, cwt = wavelet_transform(run, series)
     series_rec = inverse_wavelet_transform(run, cwt)   
     axes[2].plot(run.time, series, label='original')
@@ -277,9 +328,12 @@ if __name__ == "__main__":
     axes[2].set_ylabel('B_para [nT]')
     axes[2].legend()
     axes[2].set_xlim(0, 4000)
-    draw_power_spectrum(run, series, fig=fig, ax=axes[3],
-                        flog=True, fmin=1e-3, fmax=22e-3, vmax=None,
+    draw_power_spectrum(run, Bpara, fig=fig, ax=axes[3],
+                        flog=True, fmin=1e-3, fmax=50e-3, vmax=None,
                         fontsize=15, unit='B_para [nT]', label='B_para at (i2,i3)=('+str(i2)+','+str(i3)+')')
     axes[3].set_xlim(0, 4000)
+    axes[4].plot(run.time, run.Rho[i3, i2, :])
+    axes4_twin = axes[4].twinx()
+    axes4_twin.plot(run.time, run.Ppe[i3, i2, :])
     plt.tight_layout()
     plt.show()
