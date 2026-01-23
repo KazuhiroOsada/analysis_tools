@@ -46,37 +46,3 @@ def calc_SYM_H(run):
     Me_Am2 = np.abs(run.Me) * 1.0e7 # [T m^3] to [A m^2]
     sym_h = 4/3 * -2 * total_energy / Me_Am2 # [T]
     return sym_h * run.unitB # [nT]
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    rundirs = ['case1b128', 'case2b128', 'case3b128']
-    tranges = [(0, 1441, 20), (0, 1441, 20), (0, 1441, 20)]
-    labels = ['Case 1', 'Case 2', 'Case 3']
-    colors = ['black', 'red', 'blue']
-
-    fig, axes = plt.subplots(2, 1, figsize=(8, 6))
-    i = 0
-    for rundir, trange in zip(rundirs, tranges):
-        run = Run(f'../../run/{rundir}')
-        run.set_trange(trange)
-        run.read('coord')
-        run.read('moment')
-
-        total_energy = calc_total_energy(run)
-        sym_h = calc_SYM_H(run)
-        axes[0].plot(run.time/60, total_energy, label=labels[i], color=colors[i])
-        axes[0].set_ylabel('Total Energy [J]', fontsize=18)
-        axes[1].plot(run.time/60, sym_h, label=labels[i], color=colors[i])
-        axes[1].set_ylabel('SYM-H [nT]', fontsize=18)
-        axes[1].set_xlabel('Time [min]', fontsize=18)
-        for ax in axes:
-            ax.legend()
-            ax.grid()
-            ax.axvline(x=25, color='k', linestyle='--')
-            ax.set_xlim(run.time[0]/60, run.time[-1]/60)
-        i += 1
-    plt.savefig('dps.pdf')
-
-    
