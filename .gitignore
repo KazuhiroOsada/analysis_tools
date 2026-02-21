@@ -1,0 +1,10 @@
+*.pyc
+__pycache__/
+
+.DS_Store
+
+figure/
+
+paper_fig_scripts/input/
+paper_fig_scripts/old/
+paper_fig_scripts/others/
