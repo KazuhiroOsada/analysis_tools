@@ -2,7 +2,7 @@
 
 GitHub: [https://github.com/KazuhiroOsada/analysis_tools](https://github.com/KazuhiroOsada/analysis_tools)
 
-**[Last update] 2025/12/11**
+**[Last update] 2025/02/21**
 
 ---
 
@@ -134,3 +134,4 @@ for each time step:
 - **2025/04/03**: 作成
 - **2025/07/02**: `chunk_reader`の実装
 - **2025/09/19**: `analysis/`の追加
+- **2026/02/21**: `jgr26`ブランチの追加
