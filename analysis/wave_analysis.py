@@ -28,7 +28,7 @@ def wave_analysis(rundir, processed_dir):
     high_cutoff = 7.0e-3
     freq, cwts = compute_cwt_equatorial(run, run.E[..., 2, :], low_cutoff, high_cutoff)
     cwt_path = f'{cwt_prefix}_Ephi.npz'
-    np.savez(cwt_path, freq=freq, cwts=cwts, low_cutoff=low_cutoff, high_cutoff=high_cutoff)
+    np.savez(cwt_path, case=run.prefix.name, freq=freq, cwts=cwts, low_cutoff=low_cutoff, high_cutoff=high_cutoff)
 
     t2 = time.time()
     print(f'Wavelet transform time: {t2 - t1:.2f} sec') # ~30 sec for case1b128
@@ -46,6 +46,7 @@ def wave_analysis(rundir, processed_dir):
     analysis_prefix = os.path.join(processed_dir, 'analysis', run.prefix.name)
     analysis_path = f'{analysis_prefix}.npz'
     np.savez(analysis_path,
+             case           = run.prefix.name,
              max_power_freq = cwtdata.max_power_freq,
              max_power      = cwtdata.max_power,
              mnumbers       = cwtdata.mnumbers,
